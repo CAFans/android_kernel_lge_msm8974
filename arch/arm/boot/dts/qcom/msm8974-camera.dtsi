@@ -256,6 +256,20 @@
         qcom,clock-rates = <0 266670000 0 0 266670000 0 0 0>;
 	};
 
+	qcom,ois@48 {
+		cell-index = <998>;
+		reg = <0x48 0x0>;
+		compatible = "qcom,ois";
+		qcom,cci-master = <0>;
+	};
+
+	qcom,proxy@29 {
+		cell-index = <998>;
+		reg = <0x29 0x0>;
+		compatible = "qcom,proxy";
+		qcom,cci-master = <0>;
+	};
+
 	cci: qcom,cci@fda0C000 {
 		cell-index = <0>;
 		compatible = "qcom,cci";
