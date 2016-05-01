@@ -10,15 +10,15 @@
  * GNU General Public License for more details.
  */
 
-/include/ "msm8974-g2-tmo_us-panel.dtsi"
-/include/ "msm8974-g2-tmo_us-input.dtsi"
-/include/ "msm8974-g2-tmo_us-hdmi.dtsi"
-/include/ "msm8974-g2-tmo_us-usb.dtsi"
-/include/ "msm8974-g2-tmo_us-misc.dtsi"
-/include/ "msm8974-g2-tmo_us-pm.dtsi"
-/include/ "msm8974-g2-tmo_us-camera.dtsi"
-/include/ "msm8974-g2-tmo_us-nfc.dtsi" /* [NFC][wongab.jeon@lge.com], 2013-02-13, NFC Bring up */
-/include/ "msm8974-g2-tmo_us-sound.dtsi"
+#include "msm8974-g2-tmo_us-panel.dtsi"
+#include "msm8974-g2-tmo_us-input.dtsi"
+#include "msm8974-g2-tmo_us-hdmi.dtsi"
+#include "msm8974-g2-tmo_us-usb.dtsi"
+#include "msm8974-g2-tmo_us-misc.dtsi"
+#include "msm8974-g2-tmo_us-pm.dtsi"
+#include "msm8974-g2-tmo_us-camera.dtsi"
+#include "msm8974-g2-tmo_us-nfc.dtsi" /* [NFC][wongab.jeon@lge.com], 2013-02-13, NFC Bring up */
+#include "msm8974-g2-tmo_us-sound.dtsi"
 
 &soc {
 	serial@f991d000 {

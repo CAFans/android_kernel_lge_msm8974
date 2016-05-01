@@ -10,6 +10,6 @@
  * GNU General Public License for more details.
  */
 
-/include/ "msm8974pro-lge-common.dtsi"
-/include/ "msm8974pro-ac-emmc.dtsi"
+#include "msm8974pro-lge-common.dtsi"
+#include "msm8974pro-ac-emmc.dtsi"
 

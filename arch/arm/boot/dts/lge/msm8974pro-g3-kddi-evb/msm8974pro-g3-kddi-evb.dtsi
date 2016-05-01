@@ -10,16 +10,16 @@
  * GNU General Public License for more details.
  */
 
-/include/ "msm8974pro-g3-kddi-evb-panel.dtsi"
-/include/ "msm8974pro-g3-kddi-evb-input.dtsi"
-/include/ "msm8974pro-g3-kddi-evb-hdmi.dtsi"
-/include/ "msm8974pro-g3-kddi-evb-usb.dtsi"
-/include/ "msm8974pro-g3-kddi-evb-misc.dtsi"
-/include/ "msm8974pro-g3-kddi-evb-pm.dtsi"
-/include/ "msm8974pro-g3-kddi-evb-fullseg-i2c.dtsi"
-/include/ "msm8974pro-g3-kddi-evb-camera.dtsi"
-/include/ "msm8974pro-g3-kddi-evb-nfc.dtsi"
-/include/ "msm8974pro-g3-kddi-evb-sound.dtsi"
+#include "msm8974pro-g3-kddi-evb-panel.dtsi"
+#include "msm8974pro-g3-kddi-evb-input.dtsi"
+#include "msm8974pro-g3-kddi-evb-hdmi.dtsi"
+#include "msm8974pro-g3-kddi-evb-usb.dtsi"
+#include "msm8974pro-g3-kddi-evb-misc.dtsi"
+#include "msm8974pro-g3-kddi-evb-pm.dtsi"
+#include "msm8974pro-g3-kddi-evb-fullseg-i2c.dtsi"
+#include "msm8974pro-g3-kddi-evb-camera.dtsi"
+#include "msm8974pro-g3-kddi-evb-nfc.dtsi"
+#include "msm8974pro-g3-kddi-evb-sound.dtsi"
 
 / {
 	aliases {

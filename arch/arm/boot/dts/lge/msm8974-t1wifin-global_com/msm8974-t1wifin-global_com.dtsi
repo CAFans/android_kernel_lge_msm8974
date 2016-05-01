@@ -10,15 +10,15 @@
  * GNU General Public License for more details.
  */
 
-/include/ "msm8974-t1wifin-global_com-panel.dtsi"
-/include/ "msm8974-t1wifin-global_com-input.dtsi"
-/include/ "msm8974-t1wifin-global_com-hdmi.dtsi"
-/include/ "msm8974-t1wifin-global_com-usb.dtsi"
-/include/ "msm8974-t1wifin-global_com-misc.dtsi"
-/include/ "msm8974-t1wifin-global_com-pm.dtsi"
-/include/ "msm8974-t1wifin-global_com-camera.dtsi"
-/include/ "msm8974-t1wifin-global_com-nfc.dtsi" /* [NFC][seokhoon.o@lge.com], T1 Bring up */
-/include/ "msm8974-t1wifin-global_com-sound.dtsi"
+#include "msm8974-t1wifin-global_com-panel.dtsi"
+#include "msm8974-t1wifin-global_com-input.dtsi"
+#include "msm8974-t1wifin-global_com-hdmi.dtsi"
+#include "msm8974-t1wifin-global_com-usb.dtsi"
+#include "msm8974-t1wifin-global_com-misc.dtsi"
+#include "msm8974-t1wifin-global_com-pm.dtsi"
+#include "msm8974-t1wifin-global_com-camera.dtsi"
+#include "msm8974-t1wifin-global_com-nfc.dtsi" /* [NFC][seokhoon.o@lge.com], T1 Bring up */
+#include "msm8974-t1wifin-global_com-sound.dtsi"
 
 &soc {
 	serial@f991d000 {

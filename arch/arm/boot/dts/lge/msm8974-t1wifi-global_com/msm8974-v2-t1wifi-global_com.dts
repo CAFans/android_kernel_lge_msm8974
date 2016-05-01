@@ -12,8 +12,8 @@
 
 /dts-v1/;
 
-/include/ "../msm8974-lge-t1-common/msm8974-v2-lge.dtsi"
-/include/ "msm8974-t1wifi-global_com.dtsi"
+#include "../msm8974-lge-t1-common/msm8974-v2-lge.dtsi"
+#include "msm8974-t1wifi-global_com.dtsi"
 
 / {
 	model = "Qualcomm MSM 8974v2 T1WIFI GLOBAL COM";

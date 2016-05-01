@@ -10,16 +10,16 @@
  * GNU General Public License for more details.
  */
 
-/include/ "msm8974-g2-kddi-panel.dtsi"
-/include/ "msm8974-g2-kddi-input.dtsi"
-/include/ "msm8974-g2-kddi-hdmi.dtsi"
-/include/ "msm8974-g2-kddi-usb.dtsi"
-/include/ "msm8974-g2-kddi-misc.dtsi"
-/include/ "msm8974-g2-kddi-pm.dtsi"
-/include/ "msm8974-g2-kddi-camera.dtsi"
-/include/ "msm8974-g2-kddi-nfc.dtsi"
-/include/ "msm8974-g2-kddi-1seg-spi.dtsi"
-/include/ "msm8974-g2-kddi-sound.dtsi"
+#include "msm8974-g2-kddi-panel.dtsi"
+#include "msm8974-g2-kddi-input.dtsi"
+#include "msm8974-g2-kddi-hdmi.dtsi"
+#include "msm8974-g2-kddi-usb.dtsi"
+#include "msm8974-g2-kddi-misc.dtsi"
+#include "msm8974-g2-kddi-pm.dtsi"
+#include "msm8974-g2-kddi-camera.dtsi"
+#include "msm8974-g2-kddi-nfc.dtsi"
+#include "msm8974-g2-kddi-1seg-spi.dtsi"
+#include "msm8974-g2-kddi-sound.dtsi"
 
 / {
 	aliases {

@@ -12,12 +12,12 @@
 
 /dts-v1/;
 
-/include/ "../../qcom/msm8974pro.dtsi"
-/include/ "../../qcom/msm8974pro-ac-pm8941.dtsi"
-/include/ "../../qcom/msm8974-leds.dtsi"
+#include "../../qcom/msm8974pro.dtsi"
+#include "../../qcom/msm8974pro-ac-pm8941.dtsi"
+#include "../../qcom/msm8974-leds.dtsi"
 
-/include/ "../msm8974pro-lge-dzny-common/msm8974pro-ac-lge.dtsi"
-/include/ "msm8974pro-dzny-dcm.dtsi"
+#include "../msm8974pro-lge-dzny-common/msm8974pro-ac-lge.dtsi"
+#include "msm8974pro-dzny-dcm.dtsi"
 
 / {
 	model = "Qualcomm MSM 8974 AC L4 DCM";

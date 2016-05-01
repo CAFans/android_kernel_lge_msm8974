@@ -10,13 +10,13 @@
  * GNU General Public License for more details.
  */
 
-/include/ "msm8974-g2-evb-panel.dtsi"
-/include/ "msm8974-g2-evb-input.dtsi"
-/include/ "msm8974-g2-evb-hdmi.dtsi"
-/include/ "msm8974-g2-evb-usb.dtsi"
-/include/ "msm8974-g2-evb-misc.dtsi"
-/include/ "msm8974-g2-evb-pm.dtsi"
-/include/ "msm8974-g2-evb-camera.dtsi"
+#include "msm8974-g2-evb-panel.dtsi"
+#include "msm8974-g2-evb-input.dtsi"
+#include "msm8974-g2-evb-hdmi.dtsi"
+#include "msm8974-g2-evb-usb.dtsi"
+#include "msm8974-g2-evb-misc.dtsi"
+#include "msm8974-g2-evb-pm.dtsi"
+#include "msm8974-g2-evb-camera.dtsi"
 
 &soc {
 	serial@f991d000 {

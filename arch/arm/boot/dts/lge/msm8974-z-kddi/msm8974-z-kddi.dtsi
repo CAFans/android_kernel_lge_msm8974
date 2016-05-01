@@ -10,20 +10,20 @@
  * GNU General Public License for more details.
  */
 
-/include/ "msm8974-z-kddi-panel.dtsi"
-/include/ "msm8974-z-kddi-input.dtsi"
-/include/ "msm8974-z-kddi-hdmi.dtsi"
-/include/ "msm8974-z-kddi-usb.dtsi"
-/include/ "msm8974-z-kddi-misc.dtsi"
-/include/ "msm8974-z-kddi-pm.dtsi"
-/include/ "msm8974-z-kddi-nfc.dtsi"  
-/include/ "msm8974-z-kddi-1seg-i2c.dtsi"
-/include/ "msm8974-z-kddi-camera.dtsi"
+#include "msm8974-z-kddi-panel.dtsi"
+#include "msm8974-z-kddi-input.dtsi"
+#include "msm8974-z-kddi-hdmi.dtsi"
+#include "msm8974-z-kddi-usb.dtsi"
+#include "msm8974-z-kddi-misc.dtsi"
+#include "msm8974-z-kddi-pm.dtsi"
+#include "msm8974-z-kddi-nfc.dtsi"  
+#include "msm8974-z-kddi-1seg-i2c.dtsi"
+#include "msm8974-z-kddi-camera.dtsi"
 /*
    /include/ "msm8974-z-kddi-tdmb.dtsi"
 */
-/include/ "msm8974-z-kddi-sound.dtsi"
-/include/ "msm8974-z-kddi-lp5521.dtsi"
+#include "msm8974-z-kddi-sound.dtsi"
+#include "msm8974-z-kddi-lp5521.dtsi"
 
 &soc {
 	serial@f991d000 {

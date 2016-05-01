@@ -10,15 +10,15 @@
  * GNU General Public License for more details.
  */
 
-/include/ "msm8974-g2-spr-panel.dtsi"
-/include/ "msm8974-g2-spr-input.dtsi"
-/include/ "msm8974-g2-spr-hdmi.dtsi"
-/include/ "msm8974-g2-spr-usb.dtsi"
-/include/ "msm8974-g2-spr-misc.dtsi"
-/include/ "msm8974-g2-spr-pm.dtsi"
-/include/ "msm8974-g2-spr-camera.dtsi"
-/include/ "msm8974-g2-spr-nfc.dtsi"
-/include/ "msm8974-g2-spr-sound.dtsi"
+#include "msm8974-g2-spr-panel.dtsi"
+#include "msm8974-g2-spr-input.dtsi"
+#include "msm8974-g2-spr-hdmi.dtsi"
+#include "msm8974-g2-spr-usb.dtsi"
+#include "msm8974-g2-spr-misc.dtsi"
+#include "msm8974-g2-spr-pm.dtsi"
+#include "msm8974-g2-spr-camera.dtsi"
+#include "msm8974-g2-spr-nfc.dtsi"
+#include "msm8974-g2-spr-sound.dtsi"
 
 &soc {
 	serial@f991d000 {

@@ -10,16 +10,16 @@
  * GNU General Public License for more details.
  */
 
-/include/ "msm8974-g2-dcm-panel.dtsi"
-/include/ "msm8974-g2-dcm-input.dtsi"
-/include/ "msm8974-g2-dcm-hdmi.dtsi"
-/include/ "msm8974-g2-dcm-usb.dtsi"
-/include/ "msm8974-g2-dcm-misc.dtsi"
-/include/ "msm8974-g2-dcm-pm.dtsi"
-/include/ "msm8974-g2-dcm-camera.dtsi"
-/include/ "msm8974-g2-dcm-nfc.dtsi"
-/include/ "msm8974-g2-dcm-1seg-spi.dtsi"
-/include/ "msm8974-g2-dcm-sound.dtsi"
+#include "msm8974-g2-dcm-panel.dtsi"
+#include "msm8974-g2-dcm-input.dtsi"
+#include "msm8974-g2-dcm-hdmi.dtsi"
+#include "msm8974-g2-dcm-usb.dtsi"
+#include "msm8974-g2-dcm-misc.dtsi"
+#include "msm8974-g2-dcm-pm.dtsi"
+#include "msm8974-g2-dcm-camera.dtsi"
+#include "msm8974-g2-dcm-nfc.dtsi"
+#include "msm8974-g2-dcm-1seg-spi.dtsi"
+#include "msm8974-g2-dcm-sound.dtsi"
 
 &soc {
 	serial@f991d000 {

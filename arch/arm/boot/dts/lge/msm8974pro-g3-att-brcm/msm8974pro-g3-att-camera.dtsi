@@ -11,7 +11,7 @@
  * GNU General Public License for more details.
  */
 
-/include/ "../../qcom/skeleton.dtsi"
+#include "../../qcom/skeleton.dtsi"
 
 &pm8941_gpios {
 	gpio@c000 { /* GPIO 1 */

@@ -10,13 +10,13 @@
  * GNU General Public License for more details.
  */
 
-/include/ "msm8974pro-lge-panel.dtsi"
-/include/ "msm8974pro-lge-input.dtsi"
-/include/ "msm8974pro-lge-hdmi.dtsi"
-/include/ "msm8974pro-lge-usb.dtsi"
-/include/ "msm8974pro-lge-misc.dtsi"
-/include/ "msm8974pro-lge-pm.dtsi"
-/include/ "msm8974pro-lge-sound.dtsi"
+#include "msm8974pro-lge-panel.dtsi"
+#include "msm8974pro-lge-input.dtsi"
+#include "msm8974pro-lge-hdmi.dtsi"
+#include "msm8974pro-lge-usb.dtsi"
+#include "msm8974pro-lge-misc.dtsi"
+#include "msm8974pro-lge-pm.dtsi"
+#include "msm8974pro-lge-sound.dtsi"
 
 / {
 	qcom,mss@fc880000 {

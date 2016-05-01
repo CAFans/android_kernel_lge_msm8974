@@ -10,16 +10,16 @@
  * GNU General Public License for more details.
  */
 
-/include/ "msm8974-z-att-panel.dtsi"
-/include/ "msm8974-z-att-input.dtsi"
-/include/ "msm8974-z-att-hdmi.dtsi"
-/include/ "msm8974-z-att-usb.dtsi"
-/include/ "msm8974-z-att-misc.dtsi"
-/include/ "msm8974-z-att-pm.dtsi"
-/include/ "msm8974-z-att-camera.dtsi"
-/include/ "msm8974-z-att-nfc.dtsi" /* [NFC][wongab.jeon@lge.com], 2013-02-13, NFC Bring up */
-/include/ "msm8974-z-att-sound.dtsi"
-/include/ "msm8974-z-att-lp5521.dtsi"
+#include "msm8974-z-att-panel.dtsi"
+#include "msm8974-z-att-input.dtsi"
+#include "msm8974-z-att-hdmi.dtsi"
+#include "msm8974-z-att-usb.dtsi"
+#include "msm8974-z-att-misc.dtsi"
+#include "msm8974-z-att-pm.dtsi"
+#include "msm8974-z-att-camera.dtsi"
+#include "msm8974-z-att-nfc.dtsi" /* [NFC][wongab.jeon@lge.com], 2013-02-13, NFC Bring up */
+#include "msm8974-z-att-sound.dtsi"
+#include "msm8974-z-att-lp5521.dtsi"
 
 &soc {
 	serial@f991d000 {

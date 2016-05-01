@@ -10,15 +10,15 @@
  * GNU General Public License for more details.
  */
 
-/include/ "msm8974-t1wifi-global_com-panel.dtsi"
-/include/ "msm8974-t1wifi-global_com-input.dtsi"
-/include/ "msm8974-t1wifi-global_com-hdmi.dtsi"
-/include/ "msm8974-t1wifi-global_com-usb.dtsi"
-/include/ "msm8974-t1wifi-global_com-misc.dtsi"
-/include/ "msm8974-t1wifi-global_com-pm.dtsi"
-/include/ "msm8974-t1wifi-global_com-camera.dtsi"
+#include "msm8974-t1wifi-global_com-panel.dtsi"
+#include "msm8974-t1wifi-global_com-input.dtsi"
+#include "msm8974-t1wifi-global_com-hdmi.dtsi"
+#include "msm8974-t1wifi-global_com-usb.dtsi"
+#include "msm8974-t1wifi-global_com-misc.dtsi"
+#include "msm8974-t1wifi-global_com-pm.dtsi"
+#include "msm8974-t1wifi-global_com-camera.dtsi"
 /* /include/ "msm8974-t1wifi-global_com-nfc.dtsi" */ /* [NFC][wongab.jeon@lge.com], 2013-02-13, NFC Bring up */
-/include/ "msm8974-t1wifi-global_com-sound.dtsi"
+#include "msm8974-t1wifi-global_com-sound.dtsi"
 
 &soc {
 	serial@f991d000 {

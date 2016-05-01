@@ -10,16 +10,16 @@
  * GNU General Public License for more details.
  */
 
-/include/ "msm8974pro-g3-kr-panel.dtsi"
-/include/ "msm8974pro-g3-kr-input.dtsi"
-/include/ "msm8974pro-g3-kr-hdmi.dtsi"
-/include/ "msm8974pro-g3-kr-usb.dtsi"
-/include/ "msm8974pro-g3-kr-misc.dtsi"
-/include/ "msm8974pro-g3-kr-pm.dtsi"
-/include/ "msm8974pro-g3-kr-camera.dtsi"
-/include/ "msm8974pro-g3-kr-sound.dtsi"
-/include/ "msm8974pro-g3-kr-nfc.dtsi" /* [NFC][seunghoon65.lee@lge.com], B2 Bring up */
-/include/ "msm8974pro-g3-kr-tdmb.dtsi" /* [TDMB][hyun118.shin@lge.com], B2 Bring up */
+#include "msm8974pro-g3-kr-panel.dtsi"
+#include "msm8974pro-g3-kr-input.dtsi"
+#include "msm8974pro-g3-kr-hdmi.dtsi"
+#include "msm8974pro-g3-kr-usb.dtsi"
+#include "msm8974pro-g3-kr-misc.dtsi"
+#include "msm8974pro-g3-kr-pm.dtsi"
+#include "msm8974pro-g3-kr-camera.dtsi"
+#include "msm8974pro-g3-kr-sound.dtsi"
+#include "msm8974pro-g3-kr-nfc.dtsi" /* [NFC][seunghoon65.lee@lge.com], B2 Bring up */
+#include "msm8974pro-g3-kr-tdmb.dtsi" /* [TDMB][hyun118.shin@lge.com], B2 Bring up */
 
 &soc {
 	serial@f991d000 {

@@ -10,16 +10,16 @@
  * GNU General Public License for more details.
  */
 
-/include/ "msm8974pro-dzny-dcm-panel.dtsi"
-/include/ "msm8974pro-dzny-dcm-input.dtsi"
-/include/ "msm8974pro-dzny-dcm-hdmi.dtsi"
-/include/ "msm8974pro-dzny-dcm-usb.dtsi"
-/include/ "msm8974pro-dzny-dcm-misc.dtsi"
-/include/ "msm8974pro-dzny-dcm-pm.dtsi"
-/include/ "msm8974pro-dzny-dcm-fullseg-i2c.dtsi"
-/include/ "msm8974pro-dzny-dcm-camera.dtsi"
-/include/ "msm8974pro-dzny-dcm-nfc.dtsi"
-/include/ "msm8974pro-dzny-dcm-sound.dtsi"
+#include "msm8974pro-dzny-dcm-panel.dtsi"
+#include "msm8974pro-dzny-dcm-input.dtsi"
+#include "msm8974pro-dzny-dcm-hdmi.dtsi"
+#include "msm8974pro-dzny-dcm-usb.dtsi"
+#include "msm8974pro-dzny-dcm-misc.dtsi"
+#include "msm8974pro-dzny-dcm-pm.dtsi"
+#include "msm8974pro-dzny-dcm-fullseg-i2c.dtsi"
+#include "msm8974pro-dzny-dcm-camera.dtsi"
+#include "msm8974pro-dzny-dcm-nfc.dtsi"
+#include "msm8974pro-dzny-dcm-sound.dtsi"
 
 / {
 	aliases {

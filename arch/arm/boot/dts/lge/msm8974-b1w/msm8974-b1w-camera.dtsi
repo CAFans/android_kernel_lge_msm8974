@@ -11,7 +11,7 @@
  * GNU General Public License for more details.
  */
 
-/include/ "../../qcom/skeleton.dtsi"
+#include "../../qcom/skeleton.dtsi"
 
 &eeprom0 {
 	gpios = <&msmgpio 15 0>,		// MCLK

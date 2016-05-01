@@ -10,15 +10,15 @@
  * GNU General Public License for more details.
  */
 
-/include/ "msm8974-g2-vzw-panel.dtsi"
-/include/ "msm8974-g2-vzw-input.dtsi"
-/include/ "msm8974-g2-vzw-hdmi.dtsi"
-/include/ "msm8974-g2-vzw-usb.dtsi"
-/include/ "msm8974-g2-vzw-misc.dtsi"
-/include/ "msm8974-g2-vzw-pm.dtsi"
-/include/ "msm8974-g2-vzw-camera.dtsi"
-/include/ "msm8974-g2-vzw-nfc.dtsi" /* [NFC][wongab.jeon@lge.com], 2013-02-13, NFC Bring up */
-/include/ "msm8974-g2-vzw-sound.dtsi"
+#include "msm8974-g2-vzw-panel.dtsi"
+#include "msm8974-g2-vzw-input.dtsi"
+#include "msm8974-g2-vzw-hdmi.dtsi"
+#include "msm8974-g2-vzw-usb.dtsi"
+#include "msm8974-g2-vzw-misc.dtsi"
+#include "msm8974-g2-vzw-pm.dtsi"
+#include "msm8974-g2-vzw-camera.dtsi"
+#include "msm8974-g2-vzw-nfc.dtsi" /* [NFC][wongab.jeon@lge.com], 2013-02-13, NFC Bring up */
+#include "msm8974-g2-vzw-sound.dtsi"
 
 &soc {
 	serial@f991d000 {

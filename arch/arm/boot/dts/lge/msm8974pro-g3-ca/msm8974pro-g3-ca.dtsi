@@ -10,15 +10,15 @@
  * GNU General Public License for more details.
  */
 
-/include/ "msm8974pro-g3-ca-panel.dtsi"
-/include/ "msm8974pro-g3-ca-input.dtsi"
-/include/ "msm8974pro-g3-ca-hdmi.dtsi"
-/include/ "msm8974pro-g3-ca-usb.dtsi"
-/include/ "msm8974pro-g3-ca-misc.dtsi"
-/include/ "msm8974pro-g3-ca-pm.dtsi"
-/include/ "msm8974pro-g3-ca-camera.dtsi"
-/include/ "msm8974pro-g3-ca-sound.dtsi"
-/include/ "msm8974pro-g3-ca-nfc.dtsi" /* [NFC][seunghoon65.lee@lge.com], B2 Bring up */
+#include "msm8974pro-g3-ca-panel.dtsi"
+#include "msm8974pro-g3-ca-input.dtsi"
+#include "msm8974pro-g3-ca-hdmi.dtsi"
+#include "msm8974pro-g3-ca-usb.dtsi"
+#include "msm8974pro-g3-ca-misc.dtsi"
+#include "msm8974pro-g3-ca-pm.dtsi"
+#include "msm8974pro-g3-ca-camera.dtsi"
+#include "msm8974pro-g3-ca-sound.dtsi"
+#include "msm8974pro-g3-ca-nfc.dtsi" /* [NFC][seunghoon65.lee@lge.com], B2 Bring up */
 
 &soc {
 	serial@f991d000 {

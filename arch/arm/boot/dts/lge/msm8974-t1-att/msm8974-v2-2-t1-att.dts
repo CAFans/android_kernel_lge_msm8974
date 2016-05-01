@@ -12,8 +12,8 @@
 
 /dts-v1/;
 
-/include/ "../msm8974-lge-t1-common/msm8974-v2-2-lge.dtsi"
-/include/ "msm8974-t1-att.dtsi"
+#include "../msm8974-lge-t1-common/msm8974-v2-2-lge.dtsi"
+#include "msm8974-t1-att.dtsi"
 
 / {
 	model = "Qualcomm MSM 8974v2.2 T1 ATT";

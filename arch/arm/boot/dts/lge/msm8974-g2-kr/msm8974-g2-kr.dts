@@ -12,8 +12,8 @@
 
 /dts-v1/;
 
-/include/ "../msm8974-lge-g2-common/msm8974-lge.dtsi"
-/include/ "msm8974-g2-kr.dtsi"
+#include "../msm8974-lge-g2-common/msm8974-lge.dtsi"
+#include "msm8974-g2-kr.dtsi"
 
 / {
 	model = "Qualcomm MSM 8974 G2 KR";
