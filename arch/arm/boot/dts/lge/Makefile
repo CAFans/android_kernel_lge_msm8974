@@ -223,6 +223,3 @@ $(obj)/../%.dtb: $(src)/$(DTS_TARGET)/%.dts FORCE
 dtbs: $(addprefix $(obj)/../,$(DTB_LIST))
 
 clean-files := *.dtb
-ifeq ($(CONFIG_MACH_),y)
-DTS_TARGET := Makefile
-endif
