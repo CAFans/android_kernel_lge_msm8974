@@ -113,8 +113,14 @@ static unsigned int workload_detect;
 /* IOwait related tunables */
 static unsigned int io_enter_cycles = 4;
 static unsigned int io_exit_cycles = 4;
+#ifdef CONFIG_MACH_LGE
+static u64 iowait_ceiling_pct = 50;
+static u64 iowait_floor_pct = 35;
+#else
 static u64 iowait_ceiling_pct = 25;
 static u64 iowait_floor_pct = 8;
+#endif
+
 #define LAST_IO_CHECK_TOL	(3 * USEC_PER_MSEC)
 
 static unsigned int aggr_iobusy;
@@ -131,11 +137,29 @@ static struct task_struct *notify_thread;
 #define DEF_PCPU_MULTI_ENT	85
 #define DEF_SINGLE_EX		60
 #define DEF_PCPU_MULTI_EX	50
+
+#ifdef CONFIG_MACH_LGE
+#define DEF_SINGLE_ENTER_CYCLE	750
+#define DEF_SINGLE_EXIT_CYCLE	85
+#define DEF_MULTI_ENTER_CYCLE	50
+#define DEF_MULTI_EXIT_CYCLE	150
+#else
 #define DEF_SINGLE_ENTER_CYCLE	4
 #define DEF_SINGLE_EXIT_CYCLE	4
 #define DEF_MULTI_ENTER_CYCLE	4
 #define DEF_MULTI_EXIT_CYCLE	4
+#endif
+
 #define LAST_LD_CHECK_TOL	(2 * USEC_PER_MSEC)
+
+#ifdef CONFIG_MACH_LGE
+/* GPU workload detection related */
+#define DEF_MAX_GPU_CLOCK	600000000
+#define DEF_GPU_MODE_ENTER	DEF_MAX_GPU_CLOCK
+#define DEF_GPU_MODE_EXIT	490000000
+
+static bool single_mode_trace;
+#endif //                
 
 /**************************sysfs start********************************/
 
@@ -1313,7 +1337,7 @@ static void check_cluster_iowait(struct cluster *cl, u64 now)
 
 	if (temp_iobusy != cl->cur_io_busy) {
 		cl->io_change = true;
-		pr_debug("msm_perf: IO changed to %u\n", cl->cur_io_busy);
+		pr_info("msm_perf: IO changed to %u\n", cl->cur_io_busy);
 	}
 
 	spin_unlock_irqrestore(&cl->iowait_lock, flags);
@@ -1366,6 +1390,10 @@ static void check_cpu_load(struct cluster *cl, u64 now)
 	unsigned int i, max_load = 0, total_load = 0, ret_mode, cpu_cnt = 0;
 	unsigned int total_load_ceil, total_load_floor;
 	unsigned long flags;
+#ifdef CONFIG_MACH_LGE
+	extern int gpu_power_level;
+	extern int gpu_max_power_level;
+#endif //                
 
 	spin_lock_irqsave(&cl->mode_lock, flags);
 
@@ -1403,8 +1431,15 @@ static void check_cpu_load(struct cluster *cl, u64 now)
 				>= cl->single_enter_cycles) {
 				ret_mode |= SINGLE;
 				cl->single_enter_cycle_cnt = 0;
+#ifdef CONFIG_MACH_LGE
+				single_mode_trace = true;
+#endif //                
 			}
+#ifdef CONFIG_MACH_LGE
+		} else if (max_load < cl->single_exit_load) {
+#else //                
 		} else {
+#endif //                
 			cl->single_enter_cycle_cnt = 0;
 		}
 	} else {
@@ -1423,6 +1458,35 @@ static void check_cpu_load(struct cluster *cl, u64 now)
 		}
 	}
 
+#ifdef CONFIG_MACH_LGE
+	if (!(cl->mode & MULTI)) {
+		if (single_mode_trace && gpu_power_level >= DEF_MAX_GPU_CLOCK) {
+			cl->multi_enter_cycle_cnt++;
+			if (cl->multi_enter_cycle_cnt
+				>= cl->multi_enter_cycles) {
+				ret_mode |= MULTI;
+				cl->multi_enter_cycle_cnt = 0;
+				single_mode_trace = false;
+			}
+		} else {
+			cl->multi_enter_cycle_cnt = 0;
+		}
+	} else {
+		if (gpu_max_power_level < DEF_MAX_GPU_CLOCK) {
+			ret_mode &= ~MULTI;
+			cl->multi_exit_cycle_cnt = 0;
+		} else if (gpu_power_level < DEF_MAX_GPU_CLOCK) {
+			cl->multi_exit_cycle_cnt++;
+			if (cl->multi_exit_cycle_cnt
+				>= cl->multi_exit_cycles) {
+				ret_mode &= ~MULTI;
+				cl->multi_exit_cycle_cnt = 0;
+			}
+		} else {
+			cl->multi_exit_cycle_cnt = 0;
+		}
+	}
+#else //                
 	if (!(cl->mode & MULTI)) {
 		if (total_load >= total_load_ceil) {
 			cl->multi_enter_cycle_cnt++;
@@ -1446,13 +1510,14 @@ static void check_cpu_load(struct cluster *cl, u64 now)
 			cl->multi_exit_cycle_cnt = 0;
 		}
 	}
+#endif //                
 
 	cl->last_mode_check_ts = now;
 
 	if (ret_mode != cl->mode) {
 		cl->mode = ret_mode;
 		cl->mode_change = true;
-		pr_debug("msm_perf: Mode changed to %u\n", ret_mode);
+		pr_info("msm_perf: Mode changed to %u\n", ret_mode);
 	}
 
 	trace_cpu_mode_detect(cpumask_first(cl->cpus), max_load,
@@ -1837,6 +1902,29 @@ static int init_cluster_control(void)
 			ret = -ENOMEM;
 			goto error;
 		}
+#ifdef CONFIG_MACH_LGE
+		if (i == 0) {
+			managed_clusters[i]->max_cpu_request = -1;
+			managed_clusters[i]->single_enter_load = UINT_MAX;
+			managed_clusters[i]->single_exit_load = UINT_MAX;
+			managed_clusters[i]->single_enter_cycles = DEF_SINGLE_ENTER_CYCLE;
+			managed_clusters[i]->single_exit_cycles = DEF_SINGLE_EXIT_CYCLE;
+			managed_clusters[i]->pcpu_multi_enter_load = DEF_GPU_MODE_ENTER;
+			managed_clusters[i]->pcpu_multi_exit_load = DEF_GPU_MODE_EXIT;
+			managed_clusters[i]->multi_enter_cycles = DEF_MULTI_ENTER_CYCLE;
+			managed_clusters[i]->multi_exit_cycles = DEF_MULTI_EXIT_CYCLE;
+		} else {
+			managed_clusters[i]->max_cpu_request = -1;
+			managed_clusters[i]->single_enter_load = 99;
+			managed_clusters[i]->single_exit_load = 80;
+			managed_clusters[i]->single_enter_cycles = DEF_SINGLE_ENTER_CYCLE;
+			managed_clusters[i]->single_exit_cycles = DEF_SINGLE_EXIT_CYCLE;
+			managed_clusters[i]->pcpu_multi_enter_load = UINT_MAX;
+			managed_clusters[i]->pcpu_multi_exit_load = UINT_MAX;
+			managed_clusters[i]->multi_enter_cycles = DEF_MULTI_ENTER_CYCLE;
+			managed_clusters[i]->multi_exit_cycles = DEF_MULTI_EXIT_CYCLE;
+		}
+#else
 		managed_clusters[i]->max_cpu_request = -1;
 		managed_clusters[i]->single_enter_load = DEF_SINGLE_ENT;
 		managed_clusters[i]->single_exit_load = DEF_SINGLE_EX;
@@ -1849,6 +1937,7 @@ static int init_cluster_control(void)
 		managed_clusters[i]->pcpu_multi_exit_load = DEF_PCPU_MULTI_EX;
 		managed_clusters[i]->multi_enter_cycles = DEF_MULTI_ENTER_CYCLE;
 		managed_clusters[i]->multi_exit_cycles = DEF_MULTI_EXIT_CYCLE;
+#endif
 
 		spin_lock_init(&(managed_clusters[i]->iowait_lock));
 		spin_lock_init(&(managed_clusters[i]->mode_lock));
@@ -1857,6 +1946,10 @@ static int init_cluster_control(void)
 		managed_clusters[i]->mode_exit_timer.function =
 			single_mod_exit_timer;
 	}
+
+#ifdef CONFIG_MACH_LGE
+	single_mode_trace = false;
+#endif //                
 
 	INIT_DELAYED_WORK(&evaluate_hotplug_work, check_cluster_status);
 	mutex_init(&managed_cpus_lock);
