@@ -432,7 +432,7 @@ static void *persistent_ram_iomap(phys_addr_t start, size_t size,
 	if (memtype)
 		va = ioremap(start, size);
 	else
-		va = ioremap_wc(start, size);
+		va = ioremap_wc_xn(start, size);
 
 	return va;
 }
