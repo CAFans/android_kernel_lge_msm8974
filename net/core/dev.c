@@ -4688,7 +4688,11 @@ int __dev_change_flags(struct net_device *dev, unsigned int flags)
 
 	dev->flags = (flags & (IFF_DEBUG | IFF_NOTRAILERS | IFF_NOARP |
 			       IFF_DYNAMIC | IFF_MULTICAST | IFF_PORTSEL |
+#ifdef CONFIG_LGP_DATA_TCPIP_MPTCP
+			       IFF_AUTOMEDIA | IFF_NOMULTIPATH | IFF_MPBACKUP)) |
+#else
 			       IFF_AUTOMEDIA)) |
+#endif
 		     (dev->flags & (IFF_UP | IFF_VOLATILE | IFF_PROMISC |
 				    IFF_ALLMULTI));
 
@@ -5694,6 +5698,8 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 
 	dev->gso_max_size = GSO_MAX_SIZE;
 	dev->gso_max_segs = GSO_MAX_SEGS;
+	dev->needed_headroom = 100;
+	dev->needed_tailroom = 100;
 
 	INIT_LIST_HEAD(&dev->napi_list);
 	INIT_LIST_HEAD(&dev->unreg_list);

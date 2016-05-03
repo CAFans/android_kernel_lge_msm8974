@@ -1638,7 +1638,9 @@ static int __udp4_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 static inline int udp4_csum_init(struct sk_buff *skb, struct udphdr *uh,
 				 int proto)
 {
+#ifndef CONFIG_LGP_DATA_TCPIP_MPTCP
 	const struct iphdr *iph;
+#endif
 	int err;
 
 	UDP_SKB_CB(skb)->partial_cov = 0;
@@ -1650,6 +1652,10 @@ static inline int udp4_csum_init(struct sk_buff *skb, struct udphdr *uh,
 			return err;
 	}
 
+#ifdef CONFIG_LGP_DATA_TCPIP_MPTCP
+	return skb_checksum_init_zero_check(skb, proto, uh->check,
+					    inet_compute_pseudo);
+#else
 	iph = ip_hdr(skb);
 	if (uh->check == 0) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -1666,6 +1672,7 @@ static inline int udp4_csum_init(struct sk_buff *skb, struct udphdr *uh,
 	 */
 
 	return 0;
+#endif
 }
 
 /*
