@@ -1163,6 +1163,10 @@ cfq_choose_req(struct cfq_data *cfqd, struct request *rq1, struct request *rq2, 
  */
 static struct cfq_queue *cfq_rb_first(struct cfq_rb_root *root)
 {
+#ifdef CONFIG_MACH_LGE
+	if(!root)
+		return NULL;
+#endif
 	/* Service tree is empty */
 	if (!root->count)
 		return NULL;

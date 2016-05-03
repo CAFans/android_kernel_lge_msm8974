@@ -328,6 +328,16 @@ void *mempool_alloc_slab(gfp_t gfp_mask, void *pool_data)
 }
 EXPORT_SYMBOL(mempool_alloc_slab);
 
+void *mempool_alloc_slab_noswap(gfp_t gfp_mask, void *pool_data)
+{
+	struct kmem_cache *mem = pool_data;
+	if (!(gfp_mask & __GFP_WAIT))
+		gfp_mask |= __GFP_NO_KSWAPD;
+
+	return kmem_cache_alloc(mem, gfp_mask);
+}
+EXPORT_SYMBOL(mempool_alloc_slab_noswap);
+
 void mempool_free_slab(void *element, void *pool_data)
 {
 	struct kmem_cache *mem = pool_data;
@@ -345,6 +355,16 @@ void *mempool_kmalloc(gfp_t gfp_mask, void *pool_data)
 	return kmalloc(size, gfp_mask);
 }
 EXPORT_SYMBOL(mempool_kmalloc);
+
+void *mempool_kmalloc_noswap(gfp_t gfp_mask, void *pool_data)
+{
+	size_t size = (size_t)pool_data;
+	if (!(gfp_mask & __GFP_WAIT))
+		gfp_mask |= __GFP_NO_KSWAPD;
+
+	return kmalloc(size, gfp_mask);
+}
+EXPORT_SYMBOL(mempool_kmalloc_noswap);
 
 void mempool_kfree(void *element, void *pool_data)
 {

@@ -817,7 +817,11 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		struct address_space *mapping;
 		struct page *page;
 		int may_enter_fs;
+#ifdef CONFIG_PROCESS_RECLAIM
 		enum page_references references = PAGEREF_RECLAIM;
+#else
+		enum page_references references = PAGEREF_RECLAIM_CLEAN;
+#endif
 		bool dirty, writeback;
 
 		cond_resched();
@@ -829,8 +833,12 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 			goto keep;
 
 		VM_BUG_ON(PageActive(page));
+#ifdef CONFIG_PROCESS_RECLAIM
 		if (zone)
 			VM_BUG_ON(page_zone(page) != zone);
+#else
+		VM_BUG_ON(page_zone(page) != zone);
+#endif
 
 		sc->nr_scanned++;
 
@@ -1101,6 +1109,15 @@ free_it:
 		 * appear not as the counts should be low
 		 */
 		list_add(&page->lru, &free_pages);
+#ifdef CONFIG_PROCESS_RECLAIM
+		/*
+		 * If pagelist are from multiple zones, we should decrease
+		 * NR_ISOLATED_ANON + x on freed pages in here.
+		 */
+		if (!zone)
+			dec_zone_page_state(page, NR_ISOLATED_ANON +
+					page_is_file_cache(page));
+#endif
 		continue;
 
 cull_mlocked:
@@ -1112,7 +1129,7 @@ cull_mlocked:
 
 activate_locked:
 		/* Not a candidate for swapping, so reclaim swap space. */
-		if (PageSwapCache(page) && vm_swap_full(page_swap_info(page)))
+		if (PageSwapCache(page) && vm_swap_full())
 			try_to_free_swap(page);
 		VM_BUG_ON(PageActive(page));
 		SetPageActive(page);
@@ -1144,8 +1161,10 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
 		.gfp_mask = GFP_KERNEL,
 		.priority = DEF_PRIORITY,
 		.may_unmap = 1,
+#ifdef CONFIG_PROCESS_RECLAIM
 		/* Doesn't allow to write out dirty page */
 		.may_writepage = 0,
+#endif
 	};
 	unsigned long ret, dummy1, dummy2, dummy3, dummy4, dummy5;
 	struct page *page, *next;
@@ -1642,7 +1661,11 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 		 * Tag a zone as congested if all the dirty pages scanned were
 		 * backed by a congested BDI and wait_iff_congested will stall.
 		 */
+#ifdef CONFIG_PROCESS_RECLAIM
+		if (nr_dirty && nr_dirty == nr_congested && zone)
+#else
 		if (nr_dirty && nr_dirty == nr_congested)
+#endif
 			zone_set_flag(zone, ZONE_CONGESTED);
 
 		/*
