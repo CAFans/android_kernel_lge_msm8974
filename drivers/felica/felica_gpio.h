@@ -39,10 +39,10 @@ enum{
 };
 
 
-#define GPIO_FELICA_PON   904 //  26, but must user value of api of_get_named_gpio_flags
-#define GPIO_FELICA_RFS   907 // 29
-#define GPIO_FELICA_INT   912 // 34
-//#define GPIO_FELICA_LOCKCONT   30
+#define GPIO_FELICA_PON   74 // 26, but must user value of api of_get_named_gpio_flags
+#define GPIO_FELICA_RFS   82 // 29
+#define GPIO_FELICA_INT   46 // 34
+//#define GPIO_FELICA_LOCKCONT   45
 
 
 /*

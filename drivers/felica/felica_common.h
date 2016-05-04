@@ -118,7 +118,7 @@ typedef enum _e_snfc_i2c_status {
 #define FELICA_BOOTCLASSPATH "BOOTCLASSPATH=/system/framework/WfdCommon.jar:/system/framework/com.lge.frameworks.jar:/system/framework/com.lge.policy.jar:/system/framework/telephony-target.jar:/system/framework/com.lge.opt.jar:/system/framework/tcmiface.jar:/system/framework/core-libart.jar:/system/framework/conscrypt.jar:/system/framework/okhttp.jar:/system/framework/core-junit.jar:/system/framework/bouncycastle.jar:/system/framework/ext.jar:/system/framework/framework.jar:/system/framework/telephony-common.jar:/system/framework/voip-common.jar:/system/framework/ims-common.jar:/system/framework/mms-common.jar:/system/framework/android.policy.jar:/system/framework/apache-xml.jar"
 
 /* Must check each model's VALUE from UART developer */
-#define FELICA_IC2_NAME "/dev/i2c-5"  // dev/i2c-84
+#define FELICA_IC2_NAME "/dev/i2c-0"  // dev/i2c-84
 #define FELICA_UART_NAME "/dev/ttyHSL2" // dev/ttyHSL1
 
 /*
