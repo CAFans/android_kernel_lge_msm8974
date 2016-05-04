@@ -148,3 +148,6 @@ obj-$(CONFIG_IP_SET) += ipset/
 
 # IPVS
 obj-$(CONFIG_IP_VS) += ipvs/
+
+# LGVPN 3.4
+obj-$(CONFIG_LG_VPN_V34) += interceptor_v34/
