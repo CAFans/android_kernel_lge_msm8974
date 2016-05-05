@@ -2203,6 +2203,9 @@ extern int vfs_fsync_range(struct file *file, loff_t start, loff_t end,
 			   int datasync);
 extern int vfs_fsync(struct file *file, int datasync);
 extern int generic_write_sync(struct file *file, loff_t pos, loff_t count);
+#ifdef CONFIG_CHECK_SYNC_TIME
+extern int check_and_sync(void);
+#endif
 extern void emergency_sync(void);
 extern void emergency_remount(void);
 #ifdef CONFIG_BLOCK
