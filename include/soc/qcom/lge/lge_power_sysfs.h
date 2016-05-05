@@ -19,14 +19,6 @@
 #define __LGE_POWER_SYSFS_H_
 
 #define PWR_SYSFS_GROUPS_NUM 9
-
-#if IS_ENABLED(CONFIG_LGE_DISPLAY_DUAL_BACKLIGHT)
-#ifdef	PWR_SYSFS_GROUPS_NUM
-#undef	PWR_SYSFS_GROUPS_NUM
-#endif
-#define PWR_SYSFS_GROUPS_NUM 10
-#endif
-
 #define PWR_SYSFS_MANDATORY_MAX_NUM 5
 
 struct power_sysfs_array {
@@ -48,9 +40,6 @@ const char *group_names[PWR_SYSFS_GROUPS_NUM] = {
 	"battery",
 	"charger",
 	"lcd",
-#if IS_ENABLED(CONFIG_LGE_DISPLAY_DUAL_BACKLIGHT)
-	"lcd_ex",
-#endif
 	"key_led",
 	"cpu",
 	"gpu",
@@ -61,22 +50,15 @@ const char *group_names[PWR_SYSFS_GROUPS_NUM] = {
 /* Set sysfs node for non-using DT */
 #define PWR_SYSFS_PATH_NUM 51
 
-#if IS_ENABLED(CONFIG_LGE_DISPLAY_DUAL_BACKLIGHT)
-#ifdef	PWR_SYSFS_PATH_NUM
-#undef	PWR_SYSFS_PATH_NUM
-#endif
-#define PWR_SYSFS_PATH_NUM 53
-#endif
-
 const char *default_pwr_sysfs_path[PWR_SYSFS_PATH_NUM][3] = {
 	/* ADC/MPP */
 	{"adc", "thermal", "/sys/class/thermal/"},
-	{"adc", "xo_therm", "/sys/class/hwmon/hwmon0/device/xo_therm"},
+	{"adc", "xo_therm", "/sys/class/hwmon/hwmon0/device/xo_therm_pu2"},
 	{"adc", "batt_therm", "/sys/class/hwmon/hwmon0/device/batt_therm"},
 	{"adc", "batt_id", "/sys/class/power_supply/battery_id/valid_batt_id"},
-	{"adc", "pa_therm0", "NULL"},
+	{"adc", "pa_therm0", "/sys/class/hwmon/hwmon0/device/pa_therm0"},
 	{"adc", "pa_therm1", "NULL"},
-	{"adc", "usb_in", "/sys/class/hwmon/hwmon0/device/mpp5_usbin"},
+	{"adc", "usb_in", "/sys/class/hwmon/hwmon0/device/usb_in"},
 	{"adc", "vcoin", "/sys/class/hwmon/hwmon0/device/vcoin"},
 	{"adc", "vph_pwr", "/sys/class/hwmon/hwmon0/device/vph_pwr"},
 	{"adc", "usb_id", "/sys/class/hwmon/hwmon0/device/usb_id_lv"},
@@ -107,11 +89,6 @@ const char *default_pwr_sysfs_path[PWR_SYSFS_PATH_NUM][3] = {
 	/* LCD Backlight */
 	{"lcd", "brightness", "/sys/class/leds/lcd-backlight/brightness"},
 	{"lcd", "max_brightness", "/sys/class/leds/lcd-backlight/max_brightness"},
-#if IS_ENABLED(CONFIG_LGE_DISPLAY_DUAL_BACKLIGHT)
-	/* LCD Backlight EX */
-	{"lcd_ex", "brightness", "/sys/class/leds/lcd-backlight-ex/brightness"},
-	{"lcd_ex", "max_brightness", "/sys/class/leds/lcd-backlight-ex/max_brightness"},
-#endif
 	/* KEY LED */
 	{"key_led", "red_brightness", "/sys/class/leds/red/brightness"},
 	{"key_led", "green_brightness", "/sys/class/leds/green/brightness"},
@@ -121,8 +98,8 @@ const char *default_pwr_sysfs_path[PWR_SYSFS_PATH_NUM][3] = {
 	/* GPU */
 	{"gpu", "busy", "/sys/class/kgsl/kgsl-3d0/gpubusy"},
 	/* PLATFORM */
-	{"platform", "speed_bin", "/sys/devices/soc0/speed_bin"},
-	{"platform", "pvs_bin", "/sys/devices/soc0/pvs_bin"},
+	{"platform", "speed_bin", "/sys/devices/system/soc/soc0/speed_bin"},
+	{"platform", "pvs_bin", "/sys/devices/system/soc/soc0/pvs_bin"},
 	{"platform", "power_state", "/sys/power/autosleep"},
 	{"platform", "poweron_alarm", "/sys/module/qpnp_rtc/parameters/poweron_alarm"},
 	{"platform", "pcb_rev", "/sys/class/hwmon/hwmon0/device/pcb_rev"},
@@ -130,7 +107,7 @@ const char *default_pwr_sysfs_path[PWR_SYSFS_PATH_NUM][3] = {
 	{"testmode", "charge", "/sys/class/power_supply/battery/device/at_charge"},
 	{"testmode", "chcomp", "/sys/class/power_supply/battery/device/at_chcomp"},
 	{"testmode", "chgmodeoff", "/sys/class/power_supply/ac/charging_enabled"},
-	{"testmode", "fuelrst", "/sys/bus/i2c/devices/0-0036/fuelrst"},
+	{"testmode", "fuelrst", "/sys/bus/i2c/devices/1-0036/fuelrst"},
 	{"testmode", "rtc_time", "/dev/rtc0"},
 	{"testmode", "pmrst", "/sys/class/power_supply/battery/device/at_pmrst"},
 	{"testmode", "battexit", "/sys/class/power_supply/battery/present"},

@@ -1,5 +1,5 @@
-#ifndef __MACH_QFPROM_ADDR_8992_H__
-#define __MACH_QFPROM_ADDR_8992_H__
+#ifndef __MACH_QFPROM_ADDR_8974_H__
+#define __MACH_QFPROM_ADDR_8974_H__
 
 #define SEC_PATH "/dev/block/platform/soc.0/f9824900.sdhci/by-name/sec"
 /* QFPROM address to blow */
@@ -102,4 +102,4 @@ qfprom_result_bits version_bits[4] = {
   {QFPROM_VERSION_RPM,     QFPROM_ANTIROLLBACK2,  0x00000000,  0x03FC000F},
 };
 
-#endif // __MACH_QFPROM_ADDR_8992_H__
+#endif // __MACH_QFPROM_ADDR_8974_H__

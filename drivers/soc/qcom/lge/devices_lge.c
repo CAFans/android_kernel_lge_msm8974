@@ -41,25 +41,26 @@ static bool cable_type_defined;
 static struct chg_cable_info_table lge_acc_cable_type_data[MAX_CABLE_NUM];
 #endif
 
-#if defined(CONFIG_LGE_MIPI_P1_INCELL_QHD_CMD_PANEL)
-static char dsv_vendor[3];
-int display_panel_type;
-int lk_panel_init_fail = 0;
-int rsp_nvm_rw;
-#if defined(CONFIG_MACH_MSM8992_P1_CN) || defined(CONFIG_MACH_MSM8992_P1_GLOBAL_COM)
-int lge_sim_type;
-#endif
-#endif
-
-#if IS_ENABLED(CONFIG_LGE_MIPI_PP_INCELL_QHD_CMD_PANEL)
-int display_dic_rev;
-#endif
 static enum hw_rev_type lge_bd_rev = HW_REV_MAX;
 
 /* CAUTION: These strings are come from LK. */
+#if defined (CONFIG_MACH_MSM8974_G3_GLOBAL_COM)
+char *rev_str[] = {"evb1", "evb2", "rev_a", "rev_a1", "rev_b", "rev_c", "rev_d",
+	"rev_e", "rev_g", "rev_h", "rev_10", "rev_11", "rev_12",
+	"reserved"};
+#elif defined (CONFIG_MACH_MSM8974_G3_KDDI)
+char *rev_str[] = {"evb1", "evb2", "rev_a", "rev_a1", "rev_b", "rev_c", "rev_d",
+	"rev_e","rev_f", "rev_g", "rev_h", "rev_10", "rev_11", "rev_12",
+	"reserved"};
+#elif defined (CONFIG_MACH_MSM8974_DZNY_DCM)
+char *rev_str[] = {"evb1", "evb2", "rev_a", "rev_b", "rev_c", "rev_d",
+	"rev_e","rev_f", "rev_g", "rev_h", "rev_10", "rev_11", "rev_12",
+	"reserved"};
+#else
 char *rev_str[] = {"evb1", "evb2", "evb3", "rev_0", "rev_a", "rev_b", "rev_c",
 	"rev_d", "rev_e", "rev_f", "rev_g", "rev_10", "rev_11", "rev_12",
 	"reserved"};
+#endif
 extern unsigned int system_rev;
 
 static int __init board_revno_setup(char *rev_info)
@@ -297,113 +298,6 @@ void lge_uart_console_set_ready(unsigned int ready)
 
 #endif /*                             */
 
-#if defined(CONFIG_LGE_MIPI_P1_INCELL_QHD_CMD_PANEL)
-static int __init display_dsv_setup(char *dsv_cmd)
-{
-	sscanf(dsv_cmd, "%s", dsv_vendor);
-	pr_info("dsv vendor id is %s\n", dsv_vendor);
-
-	return 1;
-}
-__setup("lge.dsv_id=", display_dsv_setup);
-
-char* lge_get_dsv_vendor(void)
-{
-     return dsv_vendor;
-}
-
-void lge_set_panel(int panel_type)
-{
-	pr_info("panel_type is %d\n",panel_type);
-
-	display_panel_type = panel_type;
-
-}
-
-int lge_get_panel(void)
-{
-	return display_panel_type;
-}
-
-static int __init lge_rsp_nvm_setup(char *rsp_nvm)
-{
-	if (strncmp(rsp_nvm, "0", 1) == 0) {
-		rsp_nvm_rw = 0;
-	} else if (strncmp(rsp_nvm, "1", 1) == 0) {
-		rsp_nvm_rw = 1;
-	} else {
-		pr_err("%s : fail to read rsp_nvm \n", __func__);
-	}
-	pr_debug("rsp_nvm %d,\n", rsp_nvm_rw);
-
-	return 1;
-}
-__setup("lge.rsp_nvm=", lge_rsp_nvm_setup);
-
-int lge_get_rsp_nvm(void)
-{
-	return rsp_nvm_rw;
-}
-
-#if defined(CONFIG_MACH_MSM8992_P1_CN) || defined(CONFIG_MACH_MSM8992_P1_GLOBAL_COM)
-static int __init lge_sim_setup(char *sim_num)
-{
-	if (strncmp(sim_num, "1", 1) == 0) {
-		lge_sim_type = 1;
-	} else if (strncmp(sim_num, "2", 1) == 0) {
-		lge_sim_type = 2;
-	} else {
-		lge_sim_type = 0;
-		pr_err("%s : fail to read sim type\n", __func__);
-	}
-	pr_debug("lge_sim_type is %d, sim_num set %s= \n", lge_sim_type,sim_num);
-
-	return 1;
-}
-__setup("lge.sim_num=", lge_sim_setup);
-
-int lge_get_sim_type(void)
-{
-	return lge_sim_type;
-}
-#endif
-
-static int __init lk_panel_init_status(char *panel_init_cmd)
-{
-	if (strncmp(panel_init_cmd, "1", 1) == 0) {
-		lk_panel_init_fail = 1;
-		pr_info("lk panel init fail[%d]\n", lk_panel_init_fail);
-	} else {
-		lk_panel_init_fail = 0;
-	}
-
-	return 1;
-}
-__setup("lge.pinit_fail=", lk_panel_init_status);
-
-
-int lge_get_lk_panel_status(void)
-{
-     return lk_panel_init_fail;
-}
-#endif
-
-#if IS_ENABLED(CONFIG_LGE_MIPI_PP_INCELL_QHD_CMD_PANEL)
-static int __init lge_lgd_sic4945_rev_setup(char *dic_cmd)
-{
-        sscanf(dic_cmd, "%d", &display_dic_rev);
-            pr_info("lge_lgd_sic4945_rev is %d\n", display_dic_rev);
-
-                return 1;
-}
-__setup("lge.dic_rev=", lge_lgd_sic4945_rev_setup);
-
-int lge_get_lgd_sic4945_rev(void)
-{
-        return display_dic_rev;
-}
-#endif
-
 /*
    for download complete using LAF image
    return value : 1 --> right after laf complete & reset
@@ -487,15 +381,15 @@ int __init lge_boot_mode_init(char *s)
 		lge_boot_mode = LGE_BOOT_MODE_CHARGER;
 	else if (!strcmp(s, "chargerlogo"))
 		lge_boot_mode = LGE_BOOT_MODE_CHARGERLOGO;
-	else if (!strcmp(s, "qem_56k"))
+	else if (!strcmp(s, "qem_56k") || !strcmp(s, "factory2"))
 		lge_boot_mode = LGE_BOOT_MODE_QEM_56K;
-	else if (!strcmp(s, "qem_130k"))
+	else if (!strcmp(s, "qem_130k") || !strcmp(s, "factory"))
 		lge_boot_mode = LGE_BOOT_MODE_QEM_130K;
 	else if (!strcmp(s, "qem_910k"))
 		lge_boot_mode = LGE_BOOT_MODE_QEM_910K;
-	else if (!strcmp(s, "pif_56k"))
+	else if (!strcmp(s, "pif_56k") || !strcmp(s, "pifboot2"))
 		lge_boot_mode = LGE_BOOT_MODE_PIF_56K;
-	else if (!strcmp(s, "pif_130k"))
+	else if (!strcmp(s, "pif_130k") || !strcmp(s, "pifboot"))
 		lge_boot_mode = LGE_BOOT_MODE_PIF_130K;
 	else if (!strcmp(s, "pif_910k"))
 		lge_boot_mode = LGE_BOOT_MODE_PIF_910K;
