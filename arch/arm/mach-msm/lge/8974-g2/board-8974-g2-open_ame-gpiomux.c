@@ -17,7 +17,7 @@
 #include <mach/gpio.h>
 #include <mach/gpiomux.h>
 #include <mach/socinfo.h>
-#include <mach/board_lge.h>
+#include <soc/qcom/lge/board_lge.h>
 
 #define KS8851_IRQ_GPIO 94
 /* soojung.lim@lge.com, 2013-05-23

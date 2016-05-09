@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -22,33 +22,25 @@
 #include <linux/memory.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/krait-regulator.h>
-#include <linux/msm_tsens.h>
-#include <linux/msm_thermal.h>
+#include <linux/regulator/rpm-smd-regulator.h>
 #include <asm/mach/map.h>
-#include <asm/hardware/gic.h>
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
 #include <mach/board.h>
 #include <mach/gpiomux.h>
 #include <mach/msm_iomap.h>
-#ifdef CONFIG_ION_MSM
-#include <mach/ion.h>
-#endif
 #include <mach/msm_memtypes.h>
-#include <mach/msm_smd.h>
-#include <mach/restart.h>
-#include <mach/rpm-smd.h>
-#include <mach/rpm-regulator-smd.h>
-#include <mach/socinfo.h>
-#include <mach/msm_smem.h>
+#include <soc/qcom/restart.h>
+#include <soc/qcom/rpm-smd.h>
+#include <soc/qcom/socinfo.h>
+#include <soc/qcom/smd.h>
+#include <soc/qcom/smem.h>
+#include <soc/qcom/spm.h>
+#include <soc/qcom/pm.h>
 #include "../board-dt.h"
 #include "../clock.h"
-#include "../devices.h"
-#include "../spm.h"
-#include "../pm.h"
-#include "../modem_notifier.h"
 #include "../platsmp.h"
-#include <mach/board_lge.h>
+#include <soc/qcom/lge/board_lge.h>
 
 /*
  * Used to satisfy dependencies for devices that need to be
@@ -59,31 +51,17 @@
 
 void __init msm8974_add_drivers(void)
 {
-	msm_smem_init();
-	msm_init_modem_notifier_list();
 	msm_smd_init();
 	msm_rpm_driver_init();
 	msm_pm_sleep_status_init();
-	rpm_regulator_smd_driver_init();
+	rpm_smd_regulator_driver_init();
 	msm_spm_device_init();
 	krait_power_init();
-	if (of_board_is_rumi())
-		msm_clock_init(&msm8974_rumi_clock_init_data);
-	else
-		msm_clock_init(&msm8974_clock_init_data);
-	tsens_tm_init_driver();
-	msm_thermal_device_init();
 #ifdef CONFIG_LGE_LCD_TUNING
 	lge_add_lcd_misc_devices();
 #endif
 	lge_add_persistent_device();
-#ifdef CONFIG_LGE_QFPROM_INTERFACE
-	lge_add_qfprom_devices();
-#endif
 #ifdef CONFIG_LGE_ECO_MODE
 	lge_add_lge_kernel_devices();
-#endif
-#ifdef CONFIG_USB_G_LGE_ANDROID
-	lge_add_android_usb_devices();
 #endif
 }
