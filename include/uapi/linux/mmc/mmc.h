@@ -62,4 +62,13 @@
 #define MMC_APP_CMD              55   /* ac   [31:16] RCA        R1  */
 #define MMC_GEN_CMD              56   /* adtc [0] RD/WR          R1  */
 
+#ifdef CONFIG_LGE_MMC_CQ_ENABLE
+/* class 11 */
+#define MMC_QUE_TASK_PARAMS	44	/* ac R1 */
+#define MMC_QUE_TASK_ADDR	45	/* ac R1 */
+#define MMC_EXECUTE_READ_TASK	46	/* adtc R1 */
+#define MMC_EXECUTE_WRITE_TASK	47	/* adtc R1 */
+#define MMC_DISCARD_CMDQ	48	/* ac R1B */
+#endif
+
 #endif /* UAPI_MMC_MMC_H */

@@ -294,7 +294,9 @@ static void test_invalid_packed_cmd(struct request_queue *q,
 	struct request *req = mqrq->req;
 	struct request *second_rq;
 	struct test_request *test_rq;
+#ifndef CONFIG_LGE_MMC_CQ_ENABLE
 	struct mmc_blk_request *brq = &mqrq->brq;
+#endif
 	int num_requests;
 	int max_packed_reqs;
 	struct test_iosched *tios = q->elevator->elevator_data;
@@ -386,12 +388,16 @@ static void test_invalid_packed_cmd(struct request_queue *q,
 		 * Set the individual packed cmd23 request num to
 		 * max_packed_reqs + 1
 		 */
+#ifndef CONFIG_LGE_MMC_CQ_ENABLE
 		brq->sbc.arg = MMC_CMD23_ARG_PACKED | (max_packed_reqs + 1);
+#endif
 		break;
 	case TEST_CMD23_ZERO_PACKED_WRITES:
 		pr_info("%s: CMD23 request num = 0", __func__);
 		/* Set the individual packed cmd23 request num to zero */
+#ifndef CONFIG_LGE_MMC_CQ_ENABLE
 		brq->sbc.arg = MMC_CMD23_ARG_PACKED;
+#endif
 		break;
 	case TEST_CMD23_PACKED_BIT_UNSET:
 		pr_info("%s: CMD23 packed bit unset", __func__);
@@ -399,22 +405,30 @@ static void test_invalid_packed_cmd(struct request_queue *q,
 		 * Set the individual packed cmd23 packed bit to 0,
 		 *  although there is a packed write request
 		 */
+#ifndef CONFIG_LGE_MMC_CQ_ENABLE
 		brq->sbc.arg &= ~CMD23_PACKED_BIT;
+#endif
 		break;
 	case TEST_CMD23_REL_WR_BIT_SET:
 		pr_info("%s: CMD23 REL WR bit set", __func__);
 		/* Set the individual packed cmd23 reliable write bit */
+#ifndef CONFIG_LGE_MMC_CQ_ENABLE
 		brq->sbc.arg = MMC_CMD23_ARG_PACKED | MMC_CMD23_ARG_REL_WR;
+#endif
 		break;
 	case TEST_CMD23_BITS_16TO29_SET:
 		pr_info("%s: CMD23 bits [16-29] set", __func__);
+#ifndef CONFIG_LGE_MMC_CQ_ENABLE
 		brq->sbc.arg = MMC_CMD23_ARG_PACKED |
 			PACKED_HDR_BITS_16_TO_29_SET;
+#endif
 		break;
 	case TEST_CMD23_HDR_BLK_NOT_IN_COUNT:
 		pr_info("%s: CMD23 hdr not in block count", __func__);
+#ifndef CONFIG_LGE_MMC_CQ_ENABLE
 		brq->sbc.arg = MMC_CMD23_ARG_PACKED |
 		((rq_data_dir(req) == READ) ? 0 : mqrq->packed->blocks);
+#endif
 		break;
 	default:
 		pr_err("%s: unexpected testcase %d",

@@ -32,6 +32,14 @@ static inline bool mmc_op_multi(u32 opcode)
 	       opcode == MMC_READ_MULTIPLE_BLOCK;
 }
 
+#ifdef CONFIG_LGE_MMC_CQ_ENABLE
+static inline bool mmc_op_cmdq_execute_task(u32 opcode)
+{
+	return opcode == MMC_EXECUTE_READ_TASK ||
+		opcode == MMC_EXECUTE_WRITE_TASK;
+}
+#endif
+
 /*
  * MMC_SWITCH argument format:
  *
@@ -214,7 +222,9 @@ struct _mmc_csd {
 /*
  * EXT_CSD fields
  */
-
+#define EXT_CSD_FFU_STATUS		26	/* R */
+#define EXT_CSD_MODE_OPERATION_CODES	29	/* W */
+#define EXT_CSD_MODE_CONFIG		30	/* R/W */
 #define EXT_CSD_FLUSH_CACHE		32      /* W */
 #define EXT_CSD_CACHE_CTRL		33      /* R/W */
 #define EXT_CSD_POWER_OFF_NOTIFICATION	34	/* R/W */
@@ -233,6 +243,7 @@ struct _mmc_csd {
 #define EXT_CSD_SANITIZE_START		165     /* W */
 #define EXT_CSD_WR_REL_PARAM		166	/* RO */
 #define EXT_CSD_RPMB_MULT		168	/* RO */
+#define EXT_CSD_FW_CONFIG		169	/* R/W */
 #define EXT_CSD_BOOT_WP			173	/* R/W */
 #define EXT_CSD_ERASE_GROUP_DEF		175	/* R/W */
 #define EXT_CSD_PART_CONFIG		179	/* R/W */
@@ -271,12 +282,23 @@ struct _mmc_csd {
 #define EXT_CSD_GENERIC_CMD6_TIME	248	/* RO */
 #define EXT_CSD_CACHE_SIZE		249	/* RO, 4 bytes */
 #define EXT_CSD_PWR_CL_DDR_200_360	253	/* RO */
+#define EXT_CSD_NUM_OF_FW_SEC_PROG	302	/* RO */
+#define EXT_CSD_FFU_ARG			487		/* RO, 4 bytes */
+#define EXT_CSD_OPERATION_CODE_TIMEOUT	491	/* RO */
+#define EXT_CSD_FFU_FEATURES		492	/* RO */
+#define EXT_CSD_SUPPORTED_MODE		493	/* RO */
 #define EXT_CSD_TAG_UNIT_SIZE		498	/* RO */
 #define EXT_CSD_DATA_TAG_SUPPORT	499	/* RO */
 #define EXT_CSD_MAX_PACKED_WRITES	500	/* RO */
 #define EXT_CSD_MAX_PACKED_READS	501	/* RO */
 #define EXT_CSD_BKOPS_SUPPORT		502	/* RO */
 #define EXT_CSD_HPI_FEATURES		503	/* RO */
+
+#ifdef CONFIG_LGE_MMC_CQ_ENABLE
+#define EXT_CSD_CMDQ_MODE_EN		15	/* R/W/E_P */
+#define EXT_CSD_CMDQ_DEPTH			307	/* RO */
+#define EXT_CSD_CMDQ_SUPPORT		308	/* RO */
+#endif
 
 /*
  * EXT_CSD field definitions
@@ -293,6 +315,9 @@ struct _mmc_csd {
 #define EXT_CSD_BOOT_WP_B_PWR_WP_EN	(0x01)
 
 #define EXT_CSD_PART_CONFIG_ACC_MASK	(0x7)
+#ifdef CONFIG_LGE_MMC_CQ_ENABLE
+#define EXT_CSD_PART_CONFIG_USER	(0x0)
+#endif
 #define EXT_CSD_PART_CONFIG_ACC_BOOT0	(0x1)
 #define EXT_CSD_PART_CONFIG_ACC_RPMB	(0x3)
 #define EXT_CSD_PART_CONFIG_ACC_GP0	(0x4)
@@ -365,6 +390,12 @@ struct _mmc_csd {
  * BKOPS status level
  */
 #define EXT_CSD_BKOPS_LEVEL_2		0x2
+
+#ifdef CONFIG_LGE_MMC_CQ_ENABLE
+/* CMDQ enable level */
+#define EXT_CSD_CMDQ_MODE_OFF		0
+#define EXT_CSD_CMDQ_MODE_ON		1
+#endif
 
 /*
  * MMC_SWITCH access modes

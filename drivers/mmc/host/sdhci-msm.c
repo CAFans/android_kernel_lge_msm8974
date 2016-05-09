@@ -99,7 +99,6 @@ enum sdc_mpm_pin_state {
 #define CORE_HC_MCLK_SEL_HS400		(3 << 8)
 #define CORE_HC_MCLK_SEL_MASK		(3 << 8)
 #define CORE_HC_AUTO_CMD21_EN		(1 << 6)
-#define CORE_IO_PAD_PWR_SWITCH_EN	(1 << 15)
 #define CORE_IO_PAD_PWR_SWITCH	(1 << 16)
 #define CORE_HC_SELECT_IN_EN	(1 << 18)
 #define CORE_HC_SELECT_IN_HS400	(6 << 19)
@@ -1049,7 +1048,10 @@ int sdhci_msm_execute_tuning(struct sdhci_host *host, u32 opcode)
 	u8 drv_type = 0;
 	bool drv_type_changed = false;
 	struct mmc_card *card = host->mmc->card;
-
+#ifdef CONFIG_MACH_LGE
+	int i, st_err = 0;
+	u32 status;
+#endif
 	/*
 	 * Tuning is required for SDR104, HS200 and HS400 cards and
 	 * if clock frequency is greater than 100MHz in these modes.
@@ -1195,8 +1197,22 @@ retry:
 		if (rc)
 			goto kfree;
 		msm_host->saved_tuning_phase = phase;
+#ifdef CONFIG_MACH_LGE
+		pr_info("[FS] %s: %s: finally setting the tuning phase to %d\n",
+				mmc_hostname(mmc), __func__, phase);
+		if (card && card->host)
+		{
+		  for(i = 0 ; i < 5 ; i++){
+		    if(!strcmp(mmc_hostname(host->mmc), "mmc1")){
+		      st_err = mmc_send_status(card, &status);
+		      if(st_err) printk(KERN_INFO "[LGE][%-18s( )] Fail to get card status(CMD13), Err no : %d)\n", __func__, st_err);
+		    }
+		  }
+		}
+#else
 		pr_debug("%s: %s: finally setting the tuning phase to %d\n",
 				mmc_hostname(mmc), __func__, phase);
+#endif
 	} else {
 		if (--tuning_seq_cnt)
 			goto retry;
@@ -2341,12 +2357,11 @@ static irqreturn_t sdhci_msm_pwr_irq(int irq, void *data)
 	 */
 	mb();
 
-	if ((io_level & REQ_IO_HIGH) && (msm_host->caps_0 & CORE_3_0V_SUPPORT))
+	if (io_level & REQ_IO_HIGH)
 		writel_relaxed((readl_relaxed(host->ioaddr + CORE_VENDOR_SPEC) &
 				~CORE_IO_PAD_PWR_SWITCH),
 				host->ioaddr + CORE_VENDOR_SPEC);
-	else if ((io_level & REQ_IO_LOW) ||
-			(msm_host->caps_0 & CORE_1_8V_SUPPORT))
+	else if (io_level & REQ_IO_LOW)
 		writel_relaxed((readl_relaxed(host->ioaddr + CORE_VENDOR_SPEC) |
 				CORE_IO_PAD_PWR_SWITCH),
 				host->ioaddr + CORE_VENDOR_SPEC);
@@ -2437,6 +2452,24 @@ static void sdhci_msm_check_power_status(struct sdhci_host *host, u32 req_type)
 	unsigned long flags;
 	bool done = false;
 	u32 io_sig_sts;
+
+#ifdef CONFIG_LGE_MMC_SD_USE_SDCC3
+/* LGE_CHANGE
+ * Handle I/O voltage switch here if this request is for SDC3.
+ * 2014-01-23, B2-BSP-FS@lge.com
+ */
+	if (strcmp(host->hw_name, "msm_sdcc.3") == 0) {
+		if (req_type == REQ_IO_HIGH) {
+			/* Switch voltage High */
+			sdhci_msm_set_vdd_io_vol(msm_host->pdata, VDD_IO_HIGH, 0);
+			msm_host->curr_io_level = REQ_IO_HIGH;
+		} else if (req_type == REQ_IO_LOW) {
+			/* Switch voltage Low */
+			sdhci_msm_set_vdd_io_vol(msm_host->pdata, VDD_IO_LOW, 0);
+			msm_host->curr_io_level = REQ_IO_LOW;
+		}
+	}
+#endif
 
 	spin_lock_irqsave(&host->lock, flags);
 	pr_debug("%s: %s: request %d curr_pwr_state %x curr_io_level %x\n",
@@ -3116,7 +3149,7 @@ static int sdhci_msm_cfg_mpm_pin_wakeup(struct sdhci_host *host, unsigned mode)
 static void sdhci_set_default_hw_caps(struct sdhci_msm_host *msm_host,
 		struct sdhci_host *host)
 {
-	u32 version, caps = 0;
+	u32 version, caps;
 	u16 minor;
 	u8 major;
 	u32 val;
@@ -3126,8 +3159,6 @@ static void sdhci_set_default_hw_caps(struct sdhci_msm_host *msm_host,
 			CORE_VERSION_MAJOR_SHIFT;
 	minor = version & CORE_VERSION_TARGET_MASK;
 
-	caps = readl_relaxed(host->ioaddr + SDHCI_CAPABILITIES);
-
 	/*
 	 * Starting with SDCC 5 controller (core major version = 1)
 	 * controller won't advertise 3.0v, 1.8v and 8-bit features
@@ -3135,19 +3166,20 @@ static void sdhci_set_default_hw_caps(struct sdhci_msm_host *msm_host,
 	 */
 	if (major >= 1 && minor != 0x11 && minor != 0x12) {
 		struct sdhci_msm_reg_data *vdd_io_reg;
+		caps = CORE_3_0V_SUPPORT;
 		/*
 		 * Enable 1.8V support capability on controllers that
 		 * support dual voltage
 		 */
 		vdd_io_reg = msm_host->pdata->vreg_data->vdd_io_data;
-		if (vdd_io_reg && (vdd_io_reg->high_vol_level > 2700000))
-			caps |= CORE_3_0V_SUPPORT;
-		if (vdd_io_reg && (vdd_io_reg->low_vol_level < 1950000))
+		if (vdd_io_reg &&
+		   (vdd_io_reg->low_vol_level != vdd_io_reg->high_vol_level))
 			caps |= CORE_1_8V_SUPPORT;
 		if (msm_host->pdata->mmc_bus_width == MMC_CAP_8_BIT_DATA)
 			caps |= CORE_8_BIT_SUPPORT;
-		writel_relaxed(caps, host->ioaddr +
-				CORE_VENDOR_SPEC_CAPABILITIES0);
+		writel_relaxed(
+			(readl_relaxed(host->ioaddr + SDHCI_CAPABILITIES) |
+			caps), host->ioaddr + CORE_VENDOR_SPEC_CAPABILITIES0);
 	}
 
 	/*
@@ -3180,10 +3212,9 @@ static void sdhci_set_default_hw_caps(struct sdhci_msm_host *msm_host,
 	 * In case bus addressing ever changes, controller version should be
 	 * used in order to decide whether or not to mask 64-bit support.
 	 */
+	caps = readl_relaxed(host->ioaddr + SDHCI_CAPABILITIES);
 	caps &= ~CORE_SYS_BUS_SUPPORT_64_BIT;
 	writel_relaxed(caps, host->ioaddr + CORE_VENDOR_SPEC_CAPABILITIES0);
-	/* keep track of the value in SDHCI_CAPABILITIES */
-	msm_host->caps_0 = caps;
 }
 
 static int sdhci_msm_probe(struct platform_device *pdev)
@@ -3363,14 +3394,6 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 			FF_CLK_SW_RST_DIS, msm_host->core_mem + CORE_HC_MODE);
 
 	sdhci_set_default_hw_caps(msm_host, host);
-
-	/*
-	 * Set the PAD_PWR_SWTICH_EN bit so that the PAD_PWR_SWITCH bit can
-	 * be used as required later on.
-	 */
-	writel_relaxed((readl_relaxed(host->ioaddr + CORE_VENDOR_SPEC) |
-			CORE_IO_PAD_PWR_SWITCH_EN),
-			host->ioaddr + CORE_VENDOR_SPEC);
 	/*
 	 * CORE_SW_RST above may trigger power irq if previous status of PWRCTL
 	 * was either BUS_ON or IO_HIGH_V. So before we enable the power irq
@@ -3386,7 +3409,6 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	if (irq_status & (CORE_PWRCTL_IO_HIGH | CORE_PWRCTL_IO_LOW))
 		irq_ctl |= CORE_PWRCTL_IO_SUCCESS;
 	writel_relaxed(irq_ctl, (msm_host->core_mem + CORE_PWRCTL_CTL));
-
 	/*
 	 * Ensure that above writes are propogated before interrupt enablement
 	 * in GIC.
@@ -3467,12 +3489,28 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 				MMC_CAP2_DETECT_ON_ERR);
 	msm_host->mmc->caps2 |= MMC_CAP2_CACHE_CTRL;
 	msm_host->mmc->caps2 |= MMC_CAP2_FULL_PWR_CYCLE;
+#ifndef CONFIG_MACH_LGE
 	msm_host->mmc->caps2 |= MMC_CAP2_CLK_SCALE;
+#endif
 	msm_host->mmc->caps2 |= MMC_CAP2_STOP_REQUEST;
 	msm_host->mmc->caps2 |= MMC_CAP2_ASYNC_SDIO_IRQ_4BIT_MODE;
 	msm_host->mmc->pm_caps |= MMC_PM_KEEP_POWER | MMC_PM_WAKE_SDIO_IRQ;
 	msm_host->mmc->caps2 |= MMC_CAP2_CORE_PM;
 	msm_host->mmc->caps2 |= MMC_CAP2_SANITIZE;
+#ifdef CONFIG_LGE_MMC_CQ_ENABLE
+	msm_host->mmc->caps2 |= MMC_CAP2_CAN_DO_CMDQ;
+	msm_host->mmc->caps2 |= MMC_CAP2_HYBRID_MODE;
+#endif
+#ifdef CONFIG_MACH_LGE
+#if defined (CONFIG_LGE_MMC_BKOPS_ENABLE) && defined(CONFIG_MMC_SDHCI_MSM)
+	/* LGE_CHANGE
+	 * Enable BKOPS feature since it has been disabled by default.
+	 * If you want to use bkops, you have to set Y in kernel/arch/arm/configs/XXXX_defconfig file.
+	 * 2014-01-16, B2-BSP-FS@lge.com
+	 */
+	msm_host->mmc->caps2 |= MMC_CAP2_INIT_BKOPS;
+#endif
+#endif
 
 	if (msm_host->pdata->nonremovable)
 		msm_host->mmc->caps |= MMC_CAP_NONREMOVABLE;
@@ -3598,6 +3636,12 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	}
 
 	device_enable_async_suspend(&pdev->dev);
+#if defined(CONFIG_BCMDHD) || defined (CONFIG_BCMDHD_MODULE)
+	if (!strcmp(mmc_hostname(host->mmc), "mmc2")){
+	    device_disable_async_suspend(&pdev->dev);
+	    pr_err("%s: %s: device_disable_async_suspend\n", mmc_hostname(host->mmc),__func__);
+	}
+#endif
 	/* Successful initialization */
 	goto out;
 
@@ -3792,7 +3836,20 @@ static int sdhci_msm_suspend(struct device *dev)
 	int ret = 0;
 
 	if (gpio_is_valid(msm_host->pdata->status_gpio))
+	{
+#if defined( CONFIG_BCMDHD )
+		if (msm_host->mmc->card && mmc_card_sdio(msm_host->mmc->card)
+			&& (msm_host->mmc->caps & MMC_CAP_NONREMOVABLE)
+			&& (mmc_gpio_get_cd(msm_host->mmc) == 1))
+		{
+			pr_err("%s: %s: mmc_gpio_free_cd skip\n", mmc_hostname(host->mmc), __func__);
+		}
+		else
+#endif
+		{
 		mmc_gpio_free_cd(msm_host->mmc);
+		}
+	}
 
 	if (pm_runtime_suspended(dev)) {
 		pr_debug("%s: %s: already runtime suspended\n",
@@ -3813,8 +3870,20 @@ static int sdhci_msm_resume(struct device *dev)
 	int ret = 0;
 
 	if (gpio_is_valid(msm_host->pdata->status_gpio)) {
+
+#if defined( CONFIG_BCMDHD )
+                if (msm_host->mmc->card && mmc_card_sdio(msm_host->mmc->card)
+			&& (msm_host->mmc->caps & MMC_CAP_NONREMOVABLE)
+			&& (mmc_gpio_get_cd(msm_host->mmc) == 1))
+                {
+                        pr_err("%s: %s: mmc_gpio_request_cd skip\n", mmc_hostname(host->mmc), __func__);
+                }
+                else
+#endif
+		{
 		ret = mmc_gpio_request_cd(msm_host->mmc,
 				msm_host->pdata->status_gpio);
+		}
 		if (ret)
 			pr_err("%s: %s: Failed to request card detection IRQ %d\n",
 					mmc_hostname(host->mmc), __func__, ret);

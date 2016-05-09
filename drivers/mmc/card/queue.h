@@ -8,7 +8,13 @@ struct task_struct;
 
 struct mmc_blk_request {
 	struct mmc_request	mrq;
+#ifdef CONFIG_LGE_MMC_CQ_ENABLE
+	struct mmc_command	precmd;
+	struct mmc_command	postcmd;
+	struct mmc_command	cmd2;
+#else
 	struct mmc_command	sbc;
+#endif
 	struct mmc_command	cmd;
 	struct mmc_command	stop;
 	struct mmc_data		data;
@@ -41,6 +47,9 @@ struct mmc_queue_req {
 	struct mmc_async_req	mmc_active;
 	enum mmc_packed_type	cmd_type;
 	struct mmc_packed	*packed;
+#ifdef CONFIG_LGE_MMC_CQ_ENABLE
+	int task_id;
+#endif
 };
 
 struct mmc_queue {
@@ -52,12 +61,24 @@ struct mmc_queue {
 #define MMC_QUEUE_NEW_REQUEST		1
 #define MMC_QUEUE_URGENT_REQUEST	2
 
+#ifdef CONFIG_LGE_MMC_CQ_ENABLE
+	int	(*issue_fn)(struct mmc_queue *, struct request *, bool);
+#else
 	int			(*issue_fn)(struct mmc_queue *, struct request *);
+#endif
 	void			*data;
 	struct request_queue	*queue;
+#ifdef CONFIG_LGE_MMC_CQ_ENABLE
+	struct mmc_queue_req	*mqrq;
+	unsigned long		cmdqslot;
+	unsigned long		qdepth;
+	atomic_t		active_slots;
+	struct mmc_queue_req	*mqrq_cur;
+#else
 	struct mmc_queue_req	mqrq[2];
 	struct mmc_queue_req	*mqrq_cur;
 	struct mmc_queue_req	*mqrq_prev;
+#endif
 	bool			wr_packing_enabled;
 	int			num_of_potential_packed_wr_reqs;
 	int			num_wr_reqs_to_start_packing;

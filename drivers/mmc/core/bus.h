@@ -11,6 +11,21 @@
 #ifndef _MMC_CORE_BUS_H
 #define _MMC_CORE_BUS_H
 
+#ifdef CONFIG_LGE_MMC_CQ_ENABLE
+#define MMC_DEV_ATTR_GENERIC(name, fmt, store, priv, args...)			\
+static ssize_t mmc_##name##_show (struct device *dev, struct device_attribute *attr, char *buf)	\
+{										\
+	struct mmc_card *card = mmc_dev_to_card(dev);				\
+	return sprintf(buf, fmt, args);						\
+}										\
+static DEVICE_ATTR(name, priv, mmc_##name##_show, store)
+
+#define MMC_DEV_ATTR_RW(name, store, fmt, args, ...)				\
+	MMC_DEV_ATTR_GENERIC(name, fmt, store, S_IRUGO | S_IWUSR | S_IWGRP, args)
+
+#define MMC_DEV_ATTR(name, fmt, args...)					\
+	MMC_DEV_ATTR_GENERIC(name, fmt, NULL, S_IRUGO, args)
+#else
 #define MMC_DEV_ATTR(name, fmt, args...)					\
 static ssize_t mmc_##name##_show (struct device *dev, struct device_attribute *attr, char *buf)	\
 {										\
@@ -18,6 +33,7 @@ static ssize_t mmc_##name##_show (struct device *dev, struct device_attribute *a
 	return sprintf(buf, fmt, args);						\
 }										\
 static DEVICE_ATTR(name, S_IRUGO, mmc_##name##_show, NULL)
+#endif
 
 struct mmc_card *mmc_alloc_card(struct mmc_host *host,
 	struct device_type *type);

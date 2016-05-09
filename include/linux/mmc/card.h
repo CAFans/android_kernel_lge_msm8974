@@ -14,6 +14,9 @@
 #include <linux/mmc/core.h>
 #include <linux/mod_devicetable.h>
 #include <linux/notifier.h>
+#ifdef CONFIG_LGE_MMC_CQ_ENABLE
+#include <linux/sliding_window.h>
+#endif
 
 struct mmc_cid {
 	unsigned int		manfid;
@@ -110,6 +113,11 @@ struct mmc_ext_csd {
 
 	unsigned int            feature_support;
 #define MMC_DISCARD_FEATURE	BIT(0)                  /* CMD38 feature */
+#ifdef CONFIG_LGE_MMC_CQ_ENABLE
+	u8			cmdq_support;		/* 308 */
+	bool		cmdq_en;
+	u8			cmdq_depth;		/* 307 */
+#endif
 };
 
 struct sd_scr {
@@ -358,6 +366,10 @@ struct mmc_card {
  /* Skip data-timeout advertised by card */
 #define MMC_QUIRK_BROKEN_DATA_TIMEOUT	(1<<13)
 #define MMC_QUIRK_CACHE_DISABLE (1 << 14)       /* prevent cache enable */
+#ifdef CONFIG_LGE_MMC_CQ_ENABLE
+#define MMC_QUIRK_INAND_HYBRID_MODE (1 << 15)   /* iNAND devices support hybrid mode */
+#define MMC_QUIRK_INAND_CAN_DO_CMDQ (1 << 16)   /* iNAND devices support cmdq mode */
+#endif
 
 	unsigned int		erase_size;	/* erase size in sectors */
  	unsigned int		erase_shift;	/* if erase unit is power 2 */
@@ -399,6 +411,13 @@ struct mmc_card {
 	struct notifier_block        reboot_notify;
 	bool issue_long_pon;
 	u8 *cached_ext_csd;
+#ifdef CONFIG_LGE_MMC_CQ_ENABLE
+	bool 			hybrid_mode_support;
+#define MMC_SLW_WIDTH 400
+#define MMC_SLW_WRITE_TH 20
+	struct sliding_window	slw;
+	u32			slw_write_th;	/* write activity threshold % */
+#endif
 };
 
 /*
@@ -468,7 +487,11 @@ struct mmc_fixup {
 
 #define EXT_CSD_REV_ANY (-1u)
 
+#ifndef CONFIG_LGE_MMC_CQ_ENABLE
 #define CID_MANFID_SANDISK	0x2
+#else
+#define CID_MANFID_SANDISK	0x45
+#endif
 #define CID_MANFID_TOSHIBA	0x11
 #define CID_MANFID_MICRON	0x13
 #define CID_MANFID_SAMSUNG	0x15
@@ -674,4 +697,7 @@ extern struct mmc_wr_pack_stats *mmc_blk_get_packed_statistics(
 extern void mmc_blk_init_packed_statistics(struct mmc_card *card);
 extern void mmc_blk_disable_wr_packing(struct mmc_queue *mq);
 extern int mmc_send_long_pon(struct mmc_card *card);
+#ifdef CONFIG_MACH_LGE
+extern int mmc_send_status(struct mmc_card *card, u32 *status);
+#endif
 #endif /* LINUX_MMC_CARD_H */

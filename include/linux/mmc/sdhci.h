@@ -253,6 +253,9 @@ struct sdhci_host {
 
 	struct tasklet_struct card_tasklet;	/* Tasklet structures */
 	struct tasklet_struct finish_tasklet;
+#ifdef CONFIG_LGE_MMC_CQ_ENABLE
+	struct tasklet_struct finish_async_data_tasklet;
+#endif
 
 	struct timer_list timer;	/* Timer for timeouts */
 

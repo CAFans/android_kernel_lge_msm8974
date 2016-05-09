@@ -18,7 +18,9 @@
 #include <linux/delay.h>
 #include <linux/pagemap.h>
 #include <linux/err.h>
+#ifndef CONFIG_MACH_LGE
 #include <linux/leds.h>
+#endif
 #include <linux/scatterlist.h>
 #include <linux/log2.h>
 #include <linux/regulator/consumer.h>
@@ -37,6 +39,9 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sd.h>
+#if defined( CONFIG_BCMDHD )
+#include <linux/mmc/slot-gpio.h>
+#endif
 
 #include "core.h"
 #include "bus.h"
@@ -88,6 +93,24 @@ module_param_named(removable, mmc_assume_removable, bool, 0644);
 MODULE_PARM_DESC(
 	removable,
 	"MMC/SD cards are removable and may be removed during suspend");
+
+/*
+ * LGE_CHANGE_S
+ * Date 	: 2014.03.19
+ * Author 	: bohyun.jung@lge.com
+ * Comment 	: Dynamic MMC log
+ * 			  set mmc log level by accessing '/sys/module/mmc_core/parameters/debug_level' through adb shell.
+ */
+#if defined(CONFIG_LGE_MMC_DYNAMIC_LOG)
+
+uint32_t mmc_debug_level = 6;                   // show pr_info.
+
+module_param_named(debug_level, mmc_debug_level, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(
+    debug_level,
+    "MMC/SD cards debug_level");
+
+#endif	/* end of LGE_CHANGE_E */
 
 #define MMC_UPDATE_BKOPS_STATS_HPI(stats)	\
 	do {					\
@@ -236,7 +259,9 @@ void mmc_request_done(struct mmc_host *host, struct mmc_request *mrq)
 	} else {
 		mmc_should_fail_request(host, mrq);
 
+#if !defined(CONFIG_MACH_LGE)
 		led_trigger_event(host->led, LED_OFF);
+#endif
 
 		pr_debug("%s: req done (CMD%u): %d: %08x %08x %08x %08x\n",
 			mmc_hostname(host), cmd->opcode, err,
@@ -276,6 +301,16 @@ void mmc_request_done(struct mmc_host *host, struct mmc_request *mrq)
 				mrq->stop->resp[2], mrq->stop->resp[3]);
 		}
 
+#ifdef CONFIG_LGE_MMC_CQ_ENABLE
+		if (mmc_op_cmdq_execute_task(cmd->opcode) && !mrq->data) {
+			if (mrq->done)
+				mrq->done(mrq);
+			return;
+		}
+
+		led_trigger_event(host->led, LED_OFF);
+#endif
+
 		if (mrq->done)
 			mrq->done(mrq);
 
@@ -293,6 +328,18 @@ mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 	struct scatterlist *sg;
 #endif
 
+#ifdef CONFIG_LGE_MMC_CQ_ENABLE
+	// CMD44
+	if (mrq->precmd) {
+		pr_debug("<%s: starting CMD%u arg %08x flags %08x>\n",
+				mmc_hostname(host), mrq->precmd->opcode,
+				mrq->precmd->arg, mrq->precmd->flags);
+	}
+
+	pr_debug("%s: starting CMD%u arg %08x flags %08x\n",
+		 mmc_hostname(host), mrq->cmd->opcode,
+		 mrq->cmd->arg, mrq->cmd->flags);
+#else
 	if (mrq->sbc) {
 		pr_debug("<%s: starting CMD%u arg %08x flags %08x>\n",
 			 mmc_hostname(host), mrq->sbc->opcode,
@@ -302,6 +349,7 @@ mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 	pr_debug("%s: starting CMD%u arg %08x flags %08x\n",
 		 mmc_hostname(host), mrq->cmd->opcode,
 		 mrq->cmd->arg, mrq->cmd->flags);
+#endif
 
 	if (mrq->data) {
 		pr_debug("%s:     blksz %d blocks %d flags %08x "
@@ -349,7 +397,9 @@ mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 #endif
 	}
 	mmc_host_clk_hold(host);
+#ifndef CONFIG_MACH_LGE
 	led_trigger_event(host->led, LED_FULL);
+#endif
 
 	if (host->card && host->clk_scaling.enable) {
 		/*
@@ -597,6 +647,9 @@ static int __mmc_start_req(struct mmc_host *host, struct mmc_request *mrq)
 {
 	init_completion(&mrq->completion);
 	mrq->done = mmc_wait_done;
+#ifdef CONFIG_LGE_MMC_CQ_ENABLE
+	mrq->host = host;
+#endif
 	if (mmc_card_removed(host->card)) {
 		mrq->cmd->error = -ENOMEDIUM;
 		complete(&mrq->completion);
@@ -830,6 +883,117 @@ static int mmc_wait_for_data_req_done(struct mmc_host *host,
 	}
 	return err;
 }
+
+#ifdef CONFIG_LGE_MMC_CQ_ENABLE
+/*
+ * mmc_wait_for_cmdq_data_req_done() - wait for request completed
+ * @host: MMC host to prepare the command.
+ * @mrq: MMC request to wait for
+ *
+ * Blocks MMC context till host controller will ack end of data request
+ * execution or new request notification arrives from the block layer.
+ * Handles command retries.
+ *
+ * Returns enum mmc_blk_status after checking errors.
+ */
+static int mmc_wait_for_cmdq_data_req_done(struct mmc_host *host,
+				      struct mmc_request *mrq,
+				      struct mmc_async_req *next_req)
+{
+	struct mmc_command *cmd;
+	struct mmc_context_info *context_info = &host->context_info;
+	bool is_done_rcv = false;
+	int err, ret;
+	unsigned long flags;
+
+	while (1) {
+		ret = wait_io_event_interruptible(context_info->wait,
+				(context_info->is_done_rcv ||
+				 context_info->is_new_req));
+		spin_lock_irqsave(&context_info->lock, flags);
+		is_done_rcv = context_info->is_done_rcv;
+		context_info->is_waiting_last_req = false;
+		spin_unlock_irqrestore(&context_info->lock, flags);
+		if (is_done_rcv) {
+			context_info->is_done_rcv = false;
+			context_info->is_new_req = false;
+			cmd = mrq->cmd;
+
+			if (!cmd->error || !cmd->retries ||
+			    mmc_card_removed(host->card)) {
+				err = host->areq->err_check(host->card,
+						host->areq);
+				break; /* return err */
+			} else {
+				pr_info("%s: req failed (CMD%u): %d, retrying...\n",
+					mmc_hostname(host),
+					cmd->opcode, cmd->error);
+				cmd->retries--;
+				cmd->error = 0;
+				host->ops->request(host, mrq);
+				/* wait for done/new event again */
+				continue;
+			}
+		} else if (context_info->is_new_req) {
+			context_info->is_new_req = false;
+			if (!next_req) {
+				err = MMC_BLK_NEW_REQUEST;
+				break; /* return err */
+			}
+		} else {
+			pr_warn("%s: mmc thread unblocked from waiting by signal, ret=%d\n",
+					mmc_hostname(host),
+					ret);
+			continue;
+		}
+	}
+	return err;
+}
+
+int mmc_execute_cmdq(struct mmc_host *host,
+		struct mmc_async_req *areq,
+		int *status)
+{
+	struct mmc_request mrq = {0};
+	struct mmc_command cmd = {0};
+
+	*status = MMC_BLK_SUCCESS;
+
+	if (host->areq) {
+		*status = mmc_wait_for_cmdq_data_req_done(host,
+				host->areq->mrq, areq);
+		switch (*status) {
+		case MMC_BLK_SUCCESS:
+		case MMC_BLK_PARTIAL:
+			break;
+		case MMC_BLK_NEW_REQUEST:
+			return 0;
+		default:
+			host->areq = NULL;
+			return -EIO;
+		}
+	}
+
+	host->areq = areq;
+	if (!host->areq)
+		return 0;
+	/*
+	 * If previous request is success, update host->areq
+	 */
+	memcpy(&cmd, areq->mrq->postcmd, sizeof(cmd));
+	mrq.cmd = &cmd;
+	mrq.data = areq->mrq->data;
+	/* CMD complete only */
+	mmc_wait_for_req(host, &mrq);
+	if (mrq.cmd->error) {
+		host->areq = NULL;
+		return mrq.cmd->error;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(mmc_execute_cmdq);
+#endif
 
 static void mmc_wait_for_req_done(struct mmc_host *host,
 				  struct mmc_request *mrq)
@@ -1137,6 +1301,15 @@ int mmc_interrupt_hpi(struct mmc_card *card)
 	} while (!err);
 
 out:
+#ifdef CONFIG_MACH_LGE
+	/* LGE_CHANGE
+	 * add debug code
+	 * 2014-01-16, B2-BSP-FS@lge.com
+	 */
+	if (err) {
+		pr_err("%s: mmc_interrupt_hpi() failed. err: (%d)\n", mmc_hostname(card->host), err);
+	}
+#endif
 	mmc_release_host(card->host);
 	return err;
 }
@@ -1251,7 +1424,11 @@ EXPORT_SYMBOL(mmc_stop_bkops);
 
 int mmc_read_bkops_status(struct mmc_card *card)
 {
+#ifdef CONFIG_MACH_LGE
+	int err = 0;
+#else
 	int err;
+#endif
 	u8 *ext_csd;
 
 	/*
@@ -1267,7 +1444,11 @@ int mmc_read_bkops_status(struct mmc_card *card)
 	if (card->bkops_info.bkops_stats.ignore_card_bkops_status) {
 		pr_debug("%s: skipping read raw_bkops_status in unittest mode",
 			 __func__);
+#ifdef CONFIG_MACH_LGE
+		goto out;
+#else
 		return 0;
+#endif
 	}
 
 	mmc_claim_host(card->host);
@@ -1346,7 +1527,17 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 			 */
 			limit_us = 3000000;
 		else
+			#ifdef CONFIG_MACH_LGE
+			/* LGE_CHANGE
+			 * Although we already applied enough time,
+			 * timeout-error occurs until now with several-ultimate-crappy-memory.
+			 * So, we give more time than before.
+			 * 2014-01-16, B2-BSP-FS@lge.com
+			 */
+			limit_us = 300000;
+			#else
 			limit_us = 100000;
+			#endif
 
 		/*
 		 * SDHC cards always use these fixed values.
@@ -2101,7 +2292,15 @@ void mmc_power_up(struct mmc_host *host)
 	 * This delay must be at least 74 clock sizes, or 1 ms, or the
 	 * time required to reach a stable voltage.
 	 */
+#ifdef CONFIG_MACH_LGE
+	/* LGE_CHANGE
+	 * Augmenting delay-time for some crappy card.
+	 * 2014-01-16, B2-BSP-FS@lge.com
+	 */
+	mmc_delay(20);
+#else
 	mmc_delay(10);
+#endif
 
 	/* Set signal voltage to 3.3V */
 	__mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330);
@@ -2112,7 +2311,18 @@ void mmc_power_up(struct mmc_host *host)
 void mmc_power_off(struct mmc_host *host)
 {
 	if (host->ios.power_mode == MMC_POWER_OFF)
+	#ifdef CONFIG_MACH_LGE
+	/*           
+                                           
+                                        
+  */
+	{
+		printk(KERN_INFO "[LGE][MMC][%-18s( )] host->index:%d, already power-off, skip below\n", __func__, host->index);
 		return;
+	}
+	#else
+		return;
+	#endif
 
 	mmc_host_clk_hold(host);
 
@@ -2809,7 +3019,14 @@ int mmc_can_reset(struct mmc_card *card)
 		rst_n_function = card->ext_csd.rst_n_function;
 		if ((rst_n_function & EXT_CSD_RST_N_EN_MASK) !=
 		    EXT_CSD_RST_N_ENABLED)
+		#ifdef CONFIG_MACH_LGE
+		{
+			printk("%s: mmc, MMC_CAP_HW_RESET, rst_n_function=0x%02x\n", __func__, rst_n_function);
 			return 0;
+	}
+		#else
+			return 0;
+		#endif
 	}
 	return 1;
 }
@@ -3324,6 +3541,10 @@ int _mmc_detect_card_removed(struct mmc_host *host)
 		pr_debug("%s: card remove detected\n", mmc_hostname(host));
 	}
 
+	#ifdef CONFIG_MACH_LGE
+	printk(KERN_INFO "[LGE][MMC][%-18s( )] end, mmc%d, return %d\n", __func__, host->index, ret);
+	#endif
+
 	return ret;
 }
 
@@ -3369,12 +3590,29 @@ void mmc_rescan(struct work_struct *work)
 		container_of(work, struct mmc_host, detect.work);
 	bool extend_wakelock = false;
 
+#ifdef CONFIG_MACH_LGE
+		/* LGE_CHANGE
+		 * If it is already power-off, skip below.
+		 * 2014-01-16, B2-BSP-FS@lge.com
+		 */
+	printk(KERN_INFO "[LGE][MMC][%-18s( ) START!] mmc%d\n", __func__, host->index);
+#endif
+
 	if (host->rescan_disable)
 		return;
 
 	/* If there is a non-removable card registered, only scan once */
-	if ((host->caps & MMC_CAP_NONREMOVABLE) && host->rescan_entered)
+	if ((host->caps & MMC_CAP_NONREMOVABLE) && host->rescan_entered) {
+#if defined( CONFIG_BCMDHD )
+		if (host->card && mmc_card_sdio(host->card) && (mmc_gpio_get_cd(host) == 0)) {
+			// mmc power off if host card turn off
+			mmc_claim_host(host);
+			mmc_power_off(host);
+			mmc_release_host(host);
+		}
+#endif
 		return;
+	}
 	host->rescan_entered = 1;
 
 	mmc_bus_get(host);
@@ -3605,11 +3843,13 @@ int mmc_flush_cache(struct mmc_card *card)
 			pr_err("%s: cache flush timeout\n",
 					mmc_hostname(card->host));
 			rc = mmc_interrupt_hpi(card);
+#if defined(CONFIG_LGE_MMC_RESET_IF_HANG)
 			if (rc) {
 				pr_err("%s: mmc_interrupt_hpi() failed (%d)\n",
 						mmc_hostname(host), rc);
 				err = -ENODEV;
 			}
+#endif
 		} else if (err) {
 			pr_err("%s: cache flush error %d\n",
 					mmc_hostname(card->host), err);
@@ -3631,6 +3871,12 @@ int mmc_suspend_host(struct mmc_host *host)
 	int err = 0;
 	ktime_t start = ktime_get();
 
+#if defined(CONFIG_BCMDHD) || defined (CONFIG_BCMDHD_MODULE)
+	if (!strcmp(mmc_hostname(host), "mmc2")){
+		pr_err("%s: %s: enter \n", mmc_hostname(host),
+			__func__);
+	}
+#endif
 	if (mmc_bus_needs_resume(host))
 		return 0;
 
@@ -3692,6 +3938,12 @@ int mmc_suspend_host(struct mmc_host *host)
 
 	trace_mmc_suspend_host(mmc_hostname(host), err,
 			ktime_to_us(ktime_sub(ktime_get(), start)));
+#if defined(CONFIG_BCMDHD) || defined (CONFIG_BCMDHD_MODULE)
+	if (!strcmp(mmc_hostname(host), "mmc2")){
+		pr_err("%s: %s: exit \n", mmc_hostname(host),
+			__func__);
+	}
+#endif
 	return err;
 out:
 	if (!(host->card && mmc_card_sdio(host->card)))
@@ -3711,6 +3963,12 @@ int mmc_resume_host(struct mmc_host *host)
 	int err = 0;
 	ktime_t start = ktime_get();
 
+#if defined(CONFIG_BCMDHD) || defined (CONFIG_BCMDHD_MODULE)
+	if (!strcmp(mmc_hostname(host), "mmc2")){
+		pr_err("%s: %s: enter \n", mmc_hostname(host),
+			__func__);
+	}
+#endif
 	mmc_bus_get(host);
 	if (mmc_bus_manual_resume(host)) {
 		host->bus_resume_flags |= MMC_BUSRESUME_NEEDS_RESUME;
@@ -3749,6 +4007,12 @@ int mmc_resume_host(struct mmc_host *host)
 
 	trace_mmc_resume_host(mmc_hostname(host), err,
 			ktime_to_us(ktime_sub(ktime_get(), start)));
+#if defined(CONFIG_BCMDHD) || defined (CONFIG_BCMDHD_MODULE)
+	if (!strcmp(mmc_hostname(host), "mmc2")){
+		pr_err("%s: %s: exit \n", mmc_hostname(host),
+			__func__);
+	}
+#endif
 	return err;
 }
 EXPORT_SYMBOL(mmc_resume_host);
