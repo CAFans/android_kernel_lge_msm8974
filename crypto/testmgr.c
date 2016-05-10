@@ -38,6 +38,13 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 	return 0;
 }
 
+#ifdef CONFIG_CRYPTO_FIPS
+int fips_error(void)
+{
+  return 0;
+}
+#endif
+
 #else
 
 #include "testmgr.h"
@@ -64,6 +71,22 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 */
 #define ENCRYPT 1
 #define DECRYPT 0
+
+#ifdef CONFIG_CRYPTO_FIPS
+static int fips_err = 0;
+
+void set_fips_error(void)
+{
+	fips_err = 1;
+}
+EXPORT_SYMBOL_GPL(set_fips_error);
+
+int fips_error(void)
+{
+	return fips_err;
+}
+EXPORT_SYMBOL_GPL(fips_error);
+#endif
 
 struct tcrypt_result {
 	struct completion completion;
@@ -126,7 +149,11 @@ struct alg_test_desc {
 
 static unsigned int IDX[8] = { IDX1, IDX2, IDX3, IDX4, IDX5, IDX6, IDX7, IDX8 };
 
+#if FIPS_FUNC_TEST == 4
+void hexdump(unsigned char *buf, unsigned int len)
+#else
 static void hexdump(unsigned char *buf, unsigned int len)
+#endif
 {
 	print_hex_dump(KERN_CONT, "", DUMP_PREFIX_OFFSET,
 			16, 1,
@@ -512,6 +539,12 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 					/* verification failure was expected */
 					continue;
 				/* fall through */
+			case -EINVAL:
+				/* this test was not supported by this driver,
+				   so don't count as a failure */
+				pr_err("alg: aead%s: %s could not run test %d, not supported\n",
+					   d, e, j);
+				continue;
 			default:
 				pr_err("alg: aead%s: %s failed on test %d for %s: ret=%d\n",
 				       d, e, j, algo, -ret);
@@ -2482,6 +2515,16 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "fips_ansi_cprng",
+		.test = alg_test_cprng,
+		.fips_allowed = 1,
+		.suite = {
+			.cprng = {
+				.vecs = ansi_cprng_aes_tv_template,
+				.count = ANSI_CPRNG_AES_TEST_VECTORS
+			}
+		}
+	}, {
 		.alg = "gcm(aes)",
 		.test = alg_test_aead,
 		.fips_allowed = 1,
@@ -3097,7 +3140,14 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 {
 	int i;
 	int j;
-	int rc;
+	int rc = 0;
+ 	int fips_alg = 0;
+
+ 	if (!fips_enabled)
+ 		// we skip algorithm tests in non-FIPS mode, and we're quiet about it
+ 		return 0;
+ 
+ 	// we are definitely in FIPS mode here
 
 	if ((type & CRYPTO_ALG_TYPE_MASK) == CRYPTO_ALG_TYPE_CIPHER) {
 		char nalg[CRYPTO_MAX_ALG_NAME];
@@ -3110,8 +3160,12 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 		if (i < 0)
 			goto notest;
 
-		if (fips_enabled && !alg_test_descs[i].fips_allowed)
+		if (!alg_test_descs[i].fips_allowed) {
+			if (fips_allow_others)
 			goto non_fips_alg;
+			else
+				goto disallowed;
+		}
 
 		rc = alg_test_cipher(alg_test_descs + i, driver, type, mask);
 		goto test_done;
@@ -3122,33 +3176,79 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 	if (i < 0 && j < 0)
 		goto notest;
 
-	if (fips_enabled && ((i >= 0 && !alg_test_descs[i].fips_allowed) ||
-			     (j >= 0 && !alg_test_descs[j].fips_allowed)))
-		goto non_fips_alg;
+	if ((i >= 0 && alg_test_descs[i].fips_allowed) ||
+		(j >= 0 && alg_test_descs[j].fips_allowed))
+		fips_alg = 1;
+
+	if (!fips_alg && !fips_allow_others)
+		goto disallowed;
+
+	if (fips_alg)
+		printk(KERN_INFO "alg: self-tests for %s (%s) starting\n", driver, alg);
+	else 
+		printk(KERN_INFO "alg(non-FIPS): self-tests for %s (%s) starting\n",
+			driver, alg);
 
 	rc = 0;
 	if (i >= 0)
 		rc |= alg_test_descs[i].test(alg_test_descs + i, driver,
 					     type, mask);
-	if (j >= 0)
+	if (j >= 0 && j != i)
 		rc |= alg_test_descs[j].test(alg_test_descs + j, driver,
 					     type, mask);
 
-test_done:
-	if (fips_enabled && rc)
-		panic("%s: %s alg self test failed in fips mode!\n", driver, alg);
+	if (!fips_alg)
+		goto non_fips_alg;
 
-	if (fips_enabled && !rc)
+test_done:
+	if (rc == -ENOENT) { // algorithm not present
+		printk(KERN_INFO "alg: %s (%s) is not available\n", driver, alg);
+		return -EINVAL;
+	}
+	else if (rc) { // algorithm present but failed
+		printk(KERN_INFO "alg: self-tests for %s (%s) failed in FIPS mode\n",
+				driver, alg);
+		set_fips_error();
+	}
+	else // algorithm passed
 		printk(KERN_INFO "alg: self-tests for %s (%s) passed\n",
 		       driver, alg);
 
 	return rc;
 
 notest:
-	printk(KERN_INFO "alg: No test for %s (%s)\n", alg, driver);
+	if (!fips_allow_others)
+		goto disallowed;
+
+	printk(KERN_INFO "alg: no self-tests for %s (%s)\n", driver, alg);
 	return 0;
+
 non_fips_alg:
+	if (rc == -ENOENT) // algorithm not present
+		printk(KERN_INFO "alg(non-FIPS): %s (%s) is not available\n", driver, alg);
+	else if (rc) // algorithm present but failed
+		printk(KERN_INFO "alg(non-FIPS): self-tests for %s (%s) failed\n",
+			driver, alg);
+	else // algorithm passed
+		printk(KERN_INFO "alg(non-FIPS): self-tests for %s (%s) passed\n",
+			driver, alg);
+
+	return rc;
+
+disallowed:
+	printk(KERN_INFO "alg(non-FIPS): %s (%s) cannot be used in FIPS mode\n",
+		driver, alg);
 	return -EINVAL;
+}
+
+int testmgr_crypto_proc_init(void)
+{
+#ifdef CONFIG_CRYPTO_FIPS
+	crypto_init_proc(&fips_err);
+#else
+	crypto_init_proc();
+#endif
+	return 0;
 }
 
 #endif /* CONFIG_CRYPTO_MANAGER_DISABLE_TESTS */

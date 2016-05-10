@@ -353,6 +353,9 @@ void crypto_shoot_alg(struct crypto_alg *alg)
 }
 EXPORT_SYMBOL_GPL(crypto_shoot_alg);
 
+#if FIPS_FUNC_TEST == 4
+int g_tfm_sz = 0;
+#endif
 struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg, u32 type,
 				      u32 mask)
 {
@@ -360,11 +363,20 @@ struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg, u32 type,
 	unsigned int tfm_size;
 	int err = -ENOMEM;
 
+#ifdef CONFIG_CRYPTO_FIPS
+// fail fast if we're in a FIPS error state
+	if (unlikely(fips_error()))
+		return ERR_PTR(-EACCES);
+#endif
+
 	tfm_size = sizeof(*tfm) + crypto_ctxsize(alg, type, mask);
 	tfm = kzalloc(tfm_size, GFP_KERNEL);
 	if (tfm == NULL)
 		goto out_err;
 
+#if FIPS_FUNC_TEST == 4
+    g_tfm_sz = tfm_size;
+#endif
 	tfm->__crt_alg = alg;
 
 	err = crypto_init_ops(tfm, type, mask);
@@ -416,6 +428,12 @@ struct crypto_tfm *crypto_alloc_base(const char *alg_name, u32 type, u32 mask)
 	struct crypto_tfm *tfm;
 	int err;
 
+#ifdef CONFIG_CRYPTO_FIPS
+// fail fast if we're in a FIPS error state
+	if (unlikely(fips_error()))
+		return ERR_PTR(-EACCES);
+#endif
+
 	for (;;) {
 		struct crypto_alg *alg;
 
@@ -453,6 +471,14 @@ void *crypto_create_tfm(struct crypto_alg *alg,
 	unsigned int tfmsize;
 	unsigned int total;
 	int err = -ENOMEM;
+
+#ifdef CONFIG_CRYPTO_FIPS
+// fail fast if we're in a FIPS error state
+	if (unlikely(fips_error())) {
+		printk(KERN_ERR "FIPS: crypto_create_tfm failed in FIPS error state\n");
+		return ERR_PTR(-EACCES);
+	}
+#endif
 
 	tfmsize = frontend->tfmsize;
 	total = tfmsize + sizeof(*tfm) + frontend->extsize(alg);
@@ -533,6 +559,12 @@ void *crypto_alloc_tfm(const char *alg_name,
 	void *tfm;
 	int err;
 
+#ifdef CONFIG_CRYPTO_FIPS
+// fail fast if we're in a FIPS error state
+	if (unlikely(fips_error()))
+		return ERR_PTR(-EACCES);
+#endif
+
 	for (;;) {
 		struct crypto_alg *alg;
 
@@ -583,7 +615,19 @@ void crypto_destroy_tfm(void *mem, struct crypto_tfm *tfm)
 		alg->cra_exit(tfm);
 	crypto_exit_ops(tfm);
 	crypto_mod_put(alg);
+#if FIPS_FUNC_TEST == 4
+    {
+        extern void hexdump(unsigned char *, unsigned int);
+        int t = ksize(mem);
+        printk(KERN_ERR "FIPS: before zeroize crypto tfm size: %d\n", t);
+        hexdump(mem, t);
+#endif
 	kzfree(mem);
+#if FIPS_FUNC_TEST == 4
+        printk(KERN_ERR "FIPS: after zeroize crypto tfm\n");
+        hexdump(mem, t);
+    }
+#endif
 }
 EXPORT_SYMBOL_GPL(crypto_destroy_tfm);
 

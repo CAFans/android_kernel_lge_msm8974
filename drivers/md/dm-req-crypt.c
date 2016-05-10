@@ -127,6 +127,9 @@ static struct qcrypto_func_set dm_qcrypto_func = {
 };
 #endif
 
+#define MAX_SG_LIST_POOL 32
+static mempool_t *sg_pool;
+
 static void req_crypt_cipher_complete
 		(struct crypto_async_request *req, int err);
 static void req_cryptd_split_req_queue_cb
@@ -135,6 +138,16 @@ static void req_cryptd_split_req_queue
 		(struct req_dm_split_req_io *io);
 static void req_crypt_split_io_complete
 		(struct req_crypt_result *res, int err);
+
+static  unsigned int get_sg_len(struct request *rq)
+{
+	int len = 0;
+	struct bio *bio;
+	__rq_for_each_bio(bio, rq) {
+		len += bio_segments(bio);
+	}
+	return len;
+}
 
 static  bool req_crypt_should_encrypt(struct req_dm_crypt_io *req)
 {
@@ -287,6 +300,9 @@ static void req_cryptd_crypt_read_convert(struct req_dm_crypt_io *io)
 	sector_t tempiv;
 	struct req_dm_split_req_io *split_io = NULL;
 
+	bool is_mempool_alloc = 0;
+	unsigned int predicted_sg_len = 0;
+
 	if (io) {
 		error = io->error;
 		if (io->cloned_request) {
@@ -318,10 +334,21 @@ static void req_cryptd_crypt_read_convert(struct req_dm_crypt_io *io)
 
 	mutex_unlock(&engine_list_mutex);
 
-	req_sg_read = kzalloc(sizeof(struct scatterlist) *
-			MAX_SG_LIST, GFP_KERNEL);
+	predicted_sg_len = get_sg_len(clone);
+
+	if (predicted_sg_len*sizeof(struct scatterlist) > PAGE_SIZE) {
+		req_sg_read = (struct scatterlist *)mempool_alloc(sg_pool, GFP_KERNEL);
+		if (req_sg_read) {
+			memset(req_sg_read, 0x0, (sizeof(struct scatterlist) * MAX_SG_LIST));
+			is_mempool_alloc = 1;
+		}
+	}else
+		req_sg_read = kzalloc(sizeof(struct scatterlist) * predicted_sg_len, GFP_KERNEL);
+
 	if (!req_sg_read) {
 		DMERR("%s req_sg_read allocation failed\n",
+						__func__);
+		printk(KERN_ERR " [CCAudit] %s req_sg_read allocation failed\n",
 						__func__);
 		error = DM_REQ_CRYPT_ERROR;
 		goto ablkcipher_req_alloc_failure;
@@ -330,6 +357,7 @@ static void req_cryptd_crypt_read_convert(struct req_dm_crypt_io *io)
 	total_sg_len = blk_rq_map_sg_no_cluster(clone->q, clone, req_sg_read);
 	if ((total_sg_len <= 0) || (total_sg_len > MAX_SG_LIST)) {
 		DMERR("%s Request Error%d", __func__, total_sg_len);
+		printk(KERN_ERR " [CCAudit] %s Request Error%d", __func__, total_sg_len);
 		error = DM_REQ_CRYPT_ERROR;
 		goto ablkcipher_req_alloc_failure;
 	}
@@ -337,6 +365,8 @@ static void req_cryptd_crypt_read_convert(struct req_dm_crypt_io *io)
 	total_bytes_in_req = clone->__data_len;
 	if (total_bytes_in_req > REQ_DM_512_KB) {
 		DMERR("%s total_bytes_in_req > 512 MB %d",
+				__func__, total_bytes_in_req);
+		printk(KERN_ERR " [CCAudit] %s total_bytes_in_req > 512 MB %d",
 				__func__, total_bytes_in_req);
 		error = DM_REQ_CRYPT_ERROR;
 		goto ablkcipher_req_alloc_failure;
@@ -353,6 +383,7 @@ static void req_cryptd_crypt_read_convert(struct req_dm_crypt_io *io)
 				* engine_list_total, GFP_KERNEL);
 		if (!split_io) {
 			DMERR("%s split_io allocation failed\n", __func__);
+			printk(KERN_ERR " [CCAudit] %s split_io allocation failed\n", __func__);
 			error = DM_REQ_CRYPT_ERROR;
 			goto ablkcipher_req_alloc_failure;
 		}
@@ -388,6 +419,7 @@ static void req_cryptd_crypt_read_convert(struct req_dm_crypt_io *io)
 				GFP_KERNEL);
 		if (!split_io) {
 			DMERR("%s split_io allocation failed\n", __func__);
+			printk(KERN_ERR " [CCAudit] %s split_io allocation failed\n", __func__);
 			error = DM_REQ_CRYPT_ERROR;
 			goto ablkcipher_req_alloc_failure;
 		}
@@ -405,6 +437,8 @@ static void req_cryptd_crypt_read_convert(struct req_dm_crypt_io *io)
 		if (split_io->result.err) {
 			DMERR("%s error = %d for request\n",
 				 __func__, split_io->result.err);
+			printk(KERN_ERR " [CCAudit] %s error = %d for request\n",
+				 __func__, split_io->result.err);
 			error = DM_REQ_CRYPT_ERROR;
 			goto ablkcipher_req_alloc_failure;
 		}
@@ -415,6 +449,8 @@ static void req_cryptd_crypt_read_convert(struct req_dm_crypt_io *io)
 			if (split_io[i].result.err) {
 				DMERR("%s error = %d for %dst request\n",
 					 __func__, split_io[i].result.err, i);
+				printk(KERN_ERR " [CCAudit] %s error = %d for %dst request\n",
+					 __func__, split_io[i].result.err, i);
 				error = DM_REQ_CRYPT_ERROR;
 				goto ablkcipher_req_alloc_failure;
 			}
@@ -423,7 +459,11 @@ static void req_cryptd_crypt_read_convert(struct req_dm_crypt_io *io)
 	error = 0;
 ablkcipher_req_alloc_failure:
 
+	if (is_mempool_alloc)
+		mempool_free((void *)req_sg_read, sg_pool);
+	else
 	kfree(req_sg_read);
+
 	kfree(split_io);
 submit_request:
 	if (io)
@@ -477,6 +517,8 @@ static void req_cryptd_crypt_write_convert(struct req_dm_crypt_io *io)
 	unsigned int engine_list_total = 0;
 	struct crypto_engine_entry *curr_engine_list = NULL;
 	unsigned int *engine_cursor = NULL;
+	bool is_mempool_alloc = 0;
+	unsigned int predicted_sg_len = 0;
 
 
 	if (io) {
@@ -500,6 +542,8 @@ static void req_cryptd_crypt_write_convert(struct req_dm_crypt_io *io)
 	req = ablkcipher_request_alloc(tfm, GFP_KERNEL);
 	if (!req) {
 		DMERR("%s ablkcipher request allocation failed\n",
+					__func__);
+		printk(KERN_ERR " [CCAudit] %s ablkcipher request allocation failed\n",
 					__func__);
 		error = DM_REQ_CRYPT_ERROR;
 		goto ablkcipher_req_alloc_failure;
@@ -538,6 +582,8 @@ static void req_cryptd_crypt_write_convert(struct req_dm_crypt_io *io)
 	if (err) {
 		DMERR("%s qcrypto_cipher_set_device_hw failed with err %d\n",
 				__func__, err);
+		printk(KERN_ERR " [CCAudit] %s qcrypto_cipher_set_device_hw failed with err %d\n",
+				__func__, err);
 		mutex_unlock(&engine_list_mutex);
 		goto ablkcipher_req_alloc_failure;
 	}
@@ -550,19 +596,38 @@ static void req_cryptd_crypt_write_convert(struct req_dm_crypt_io *io)
 	crypto_ablkcipher_clear_flags(tfm, ~0);
 	crypto_ablkcipher_setkey(tfm, NULL, KEY_SIZE_XTS);
 
-	req_sg_in = kzalloc(sizeof(struct scatterlist) * MAX_SG_LIST,
-			GFP_KERNEL);
+	predicted_sg_len = get_sg_len(clone);
+
+	if (predicted_sg_len*sizeof(struct scatterlist) > PAGE_SIZE) {
+		req_sg_in = (struct scatterlist *)mempool_alloc(sg_pool, GFP_KERNEL);
+		if (req_sg_in) {
+			memset(req_sg_in, 0x0, (sizeof(struct scatterlist) * MAX_SG_LIST));
+			is_mempool_alloc |= 1;
+			req_sg_out = (struct scatterlist *)mempool_alloc(sg_pool, GFP_KERNEL);
+			if (req_sg_out) {
+				memset(req_sg_out, 0x0, (sizeof(struct scatterlist) * MAX_SG_LIST));
+				is_mempool_alloc |= 1<<1;
+			}
+		}
+	}else{
+		req_sg_in = kzalloc(sizeof(struct scatterlist) * predicted_sg_len, GFP_KERNEL);
+		if (req_sg_in)
+			req_sg_out = kzalloc(sizeof(struct scatterlist) * predicted_sg_len, GFP_KERNEL);
+	}
+
 	if (!req_sg_in) {
 		DMERR("%s req_sg_in allocation failed\n",
+					__func__);
+		printk(KERN_ERR " [CCAudit] %s req_sg_in allocation failed\n",
 					__func__);
 		error = DM_REQ_CRYPT_ERROR;
 		goto ablkcipher_req_alloc_failure;
 	}
 
-	req_sg_out = kzalloc(sizeof(struct scatterlist) * MAX_SG_LIST,
-			GFP_KERNEL);
 	if (!req_sg_out) {
 		DMERR("%s req_sg_out allocation failed\n",
+					__func__);
+		printk(KERN_ERR " [CCAudit] %s req_sg_out allocation failed\n",
 					__func__);
 		error = DM_REQ_CRYPT_ERROR;
 		goto ablkcipher_req_alloc_failure;
@@ -572,6 +637,7 @@ static void req_cryptd_crypt_write_convert(struct req_dm_crypt_io *io)
 	if ((total_sg_len_req_in <= 0) ||
 			(total_sg_len_req_in > MAX_SG_LIST)) {
 		DMERR("%s Request Error%d", __func__, total_sg_len_req_in);
+		printk(KERN_ERR " [CCAudit] %s Request Error%d", __func__, total_sg_len_req_in);
 		error = DM_REQ_CRYPT_ERROR;
 		goto ablkcipher_req_alloc_failure;
 	}
@@ -579,6 +645,8 @@ static void req_cryptd_crypt_write_convert(struct req_dm_crypt_io *io)
 	total_bytes_in_req = clone->__data_len;
 	if (total_bytes_in_req > REQ_DM_512_KB) {
 		DMERR("%s total_bytes_in_req > 512 MB %d",
+				__func__, total_bytes_in_req);
+		printk(KERN_ERR " [CCAudit] %s total_bytes_in_req > 512 MB %d",
 				__func__, total_bytes_in_req);
 		error = DM_REQ_CRYPT_ERROR;
 		goto ablkcipher_req_alloc_failure;
@@ -612,6 +680,7 @@ static void req_cryptd_crypt_write_convert(struct req_dm_crypt_io *io)
 	if ((total_sg_len_req_out <= 0) ||
 			(total_sg_len_req_out > MAX_SG_LIST)) {
 		DMERR("%s Request Error %d", __func__, total_sg_len_req_out);
+		printk(KERN_ERR " [CCAudit] %s Request Error %d", __func__, total_sg_len_req_out);
 		error = DM_REQ_CRYPT_ERROR_AFTER_PAGE_MALLOC;
 		goto ablkcipher_req_alloc_failure;
 	}
@@ -637,6 +706,8 @@ static void req_cryptd_crypt_write_convert(struct req_dm_crypt_io *io)
 		wait_for_completion_interruptible(&result.completion);
 		if (result.err) {
 			DMERR("%s error = %d encrypting the request\n",
+				 __func__, result.err);
+			printk(KERN_ERR " [CCAudit] %s error = %d encrypting the request\n",
 				 __func__, result.err);
 			error = DM_REQ_CRYPT_ERROR_AFTER_PAGE_MALLOC;
 			goto ablkcipher_req_alloc_failure;
@@ -677,9 +748,14 @@ ablkcipher_req_alloc_failure:
 		}
 	}
 
-
+	if (is_mempool_alloc & 1)
+		mempool_free((void *)req_sg_in, sg_pool);
+	else
 	kfree(req_sg_in);
 
+	if (is_mempool_alloc & (1<<1))
+		mempool_free((void *)req_sg_out, sg_pool);
+	else
 	kfree(req_sg_out);
 
 submit_request:
@@ -747,6 +823,7 @@ static void req_cryptd_split_req_queue_cb(struct work_struct *work)
 	req = ablkcipher_request_alloc(tfm, GFP_KERNEL);
 	if (!req) {
 		DMERR("%s ablkcipher request allocation failed\n", __func__);
+		printk(KERN_ERR " [CCAudit] %s ablkcipher request allocation failed\n", __func__);
 		err = DM_REQ_CRYPT_ERROR;
 		goto ablkcipher_req_alloc_failure;
 	}
@@ -760,6 +837,8 @@ static void req_cryptd_split_req_queue_cb(struct work_struct *work)
 			engine->hw_instance);
 	if (err) {
 		DMERR("%s qcrypto_cipher_set_device_hw failed with err %d\n",
+				__func__, err);
+		printk(KERN_ERR " [CCAudit] %s qcrypto_cipher_set_device_hw failed with err %d\n",
 				__func__, err);
 		goto ablkcipher_req_alloc_failure;
 	}
@@ -787,6 +866,8 @@ static void req_cryptd_split_req_queue_cb(struct work_struct *work)
 		wait_for_completion_io(&result.completion);
 		if (result.err) {
 			DMERR("%s error = %d encrypting the request\n",
+				 __func__, result.err);
+			printk(KERN_ERR " [CCAudit] %s error = %d encrypting the request\n",
 				 __func__, result.err);
 			err = DM_REQ_CRYPT_ERROR;
 			goto ablkcipher_req_alloc_failure;
@@ -1175,6 +1256,8 @@ static int req_crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (IS_ERR(tfm)) {
 		DMERR("%s ablkcipher tfm allocation failed : error\n",
 					 __func__);
+		printk(KERN_ERR " [CCAudit] %s ablkcipher tfm allocation failed : error\n",
+					 __func__);
 		err =  DM_REQ_CRYPT_ERROR;
 		goto ctr_exit;
 	}
@@ -1185,6 +1268,8 @@ static int req_crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	num_engines = (dm_qcrypto_func.get_num_engines)();
 	if (!num_engines) {
 		DMERR(KERN_INFO "%s qcrypto_get_num_engines failed\n",
+				__func__);
+		printk(KERN_ERR " [CCAudit] %s qcrypto_get_num_engines failed\n",
 				__func__);
 		err = -DM_REQ_CRYPT_ERROR;
 		mutex_unlock(&engine_list_mutex);
@@ -1239,6 +1324,7 @@ static int req_crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	BUG_ON(!req_io_pool);
 	if (!req_io_pool) {
 		DMERR("%s req_io_pool not allocated\n", __func__);
+		printk(KERN_ERR " [CCAudit] %s req_io_pool not allocated\n", __func__);
 		err =  DM_REQ_CRYPT_ERROR;
 		goto ctr_exit;
 	}
@@ -1246,6 +1332,7 @@ static int req_crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	req_page_pool = mempool_create_page_pool(MIN_POOL_PAGES, 0);
 	if (!req_page_pool) {
 		DMERR("%s req_page_pool not allocated\n", __func__);
+		printk(KERN_ERR " [CCAudit] %s req_page_pool not allocated\n", __func__);
 		err =  DM_REQ_CRYPT_ERROR;
 		goto ctr_exit;
 	}
@@ -1295,10 +1382,14 @@ static int __init req_dm_crypt_init(void)
 {
 	int r;
 
+	sg_pool = mempool_create(MAX_SG_LIST_POOL,
+			mempool_kmalloc_noswap, mempool_kfree,
+			(void *)(sizeof(struct scatterlist) * MAX_SG_LIST));
 
 	r = dm_register_target(&req_crypt_target);
 	if (r < 0) {
 		DMERR("register failed %d", r);
+		printk(KERN_ERR " [CCAudit] register failed %d", r);
 		return r;
 	}
 
@@ -1310,6 +1401,7 @@ static int __init req_dm_crypt_init(void)
 static void __exit req_dm_crypt_exit(void)
 {
 	dm_unregister_target(&req_crypt_target);
+	mempool_destroy(sg_pool);
 }
 
 module_init(req_dm_crypt_init);

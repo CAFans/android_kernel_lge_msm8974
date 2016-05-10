@@ -430,8 +430,10 @@ void hwrng_unregister(struct hwrng *rng)
 	}
 	if (list_empty(&rng_list)) {
 		unregister_miscdev();
-		if (hwrng_fill)
+		if (hwrng_fill) {
 			kthread_stop(hwrng_fill);
+			hwrng_fill = NULL;
+		}
 	}
 
 	mutex_unlock(&rng_mutex);
